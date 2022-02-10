@@ -57,14 +57,16 @@ func TestTransactionInitialization(t *testing.T) {
 		t.Fatal("Transaction initialization failed")
 	}
 	tx := ptrToTransaction(tt)
+	id := tx.ID
 	tx.ProcessConnection("127.0.0.1", 55555, "127.0.0.1", 80)
 	tx = ptrToTransaction(tt)
-	if tx.ID == "" {
-		t.Fatal("Transaction initialization failed")
+	if tx.ID != id || id == "" {
+		t.Fatalf("Transaction initialization failed, %q != %q ", tx.ID, id)
 	}
 	if tx.GetCollection(variables.RemoteAddr).GetFirstString("") != "127.0.0.1" {
 		t.Fatal("Transaction initialization failed")
 	}
+	tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
 }
 
 func BenchmarkTransactionCreation(b *testing.B) {
