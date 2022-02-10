@@ -28,8 +28,18 @@ int main()
     }
     printf("Processing connection...\n");
     coraza_process_connection(tx, "127.0.0.1", 55555, "", 80);
+    printf("Processing request line\n");
+    coraza_process_uri(tx, "/someurl", "GET", "HTTP/1.1");
     printf("Processing phase 1\n");
     coraza_process_request_headers(tx);
+    printf("Processing phase 2\n");
+    coraza_process_request_body(tx);
+    printf("Processing phase 3\n");
+    coraza_process_response_headers(tx, 200, "HTTP/1.1");
+    printf("Processing phase 4\n");
+    coraza_process_response_body(tx);
+    printf("Processing phase 5\n");
+    coraza_process_logging(tx);
     printf("Processing intervention\n");
     intervention = coraza_intervention(tx);
     if (intervention == NULL)
@@ -38,5 +48,18 @@ int main()
         return 1;
     }
     printf("Transaction disrupted with status %d\n", intervention->status);
+
+    char ** uri = NULL;
+    uri = coraza_transaction_variable(tx, "request_uri", "");
+    if(uri == NULL) {
+        printf("Failed to get request_uri\n");
+        return 1;
+    }
+    printf("Request URI: %s\n", *uri);
+
+    if(coraza_transaction_free(tx) != 0) {
+        printf("Failed to free transaction\n");
+        return 1;
+    }
     return 0;
 }

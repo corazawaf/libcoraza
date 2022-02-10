@@ -19,3 +19,9 @@ test: library-osx
 docs: 
 # build C header doxygen
 	@doxygen ./Doxyfile
+
+install: 
+	mkdir -p /usr/local/coraza/lib
+	mkdir -p /usr/local/coraza/include
+	mv coraza_core.dylib coraza_core.a /usr/local/coraza/lib/
+	mv coraza_core.h /usr/local/coraza/include/

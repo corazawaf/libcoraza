@@ -3,13 +3,15 @@ package main
 /*
 #ifndef _CORAZA_H_
 #define _CORAZA_H_
+#include <stdio.h>
+#include <stdlib.h>
 typedef struct coraza_intervention_t
 {
 	char *action;
+	char *log;
     int status;
     int pause;
     char *url;
-    char *log;
     int disruptive;
 } coraza_intervention_t;
 
@@ -22,6 +24,8 @@ typedef void* coraza_transaction_t;
 import "C"
 import (
 	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"unsafe"
 
@@ -54,7 +58,7 @@ func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_t
 }
 
 //export coraza_new_transaction_with_id
-func coraza_new_transaction_with_id(waf C.coraza_waf_t, logCb unsafe.Pointer, id *C.char) C.coraza_transaction_t {
+func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char, logCb unsafe.Pointer) C.coraza_transaction_t {
 	idd := C.GoString(id)
 	txPtr := coraza_new_transaction(waf, logCb)
 	tx := ptrToTransaction(txPtr)
@@ -69,7 +73,8 @@ func coraza_intervention(tx C.coraza_transaction_t) *C.coraza_intervention_t {
 	if t.Interruption == nil {
 		return nil
 	}
-	mem := (*C.coraza_intervention_t)(C.malloc(C.size_t(unsafe.Sizeof(uintptr(0)))))
+	// TODO this must be triple checked
+	mem := (*C.coraza_intervention_t)(C.malloc(C.size_t(unsafe.Sizeof(C.coraza_intervention_t{}))))
 	mem.action = C.CString(t.Interruption.Action)
 	mem.status = C.int(t.Interruption.Status)
 	return mem
@@ -89,7 +94,9 @@ func coraza_process_connection(t C.coraza_transaction_t, sourceAddress *C.char, 
 //export coraza_process_request_body
 func coraza_process_request_body(t C.coraza_transaction_t) C.int {
 	tx := ptrToTransaction(t)
-	tx.ProcessRequestBody()
+	if _, err := tx.ProcessRequestBody(); err != nil {
+		return 1
+	}
 	return 0
 }
 
@@ -111,9 +118,9 @@ func coraza_process_uri(t C.coraza_transaction_t, uri *C.char, method *C.char, p
 }
 
 //export coraza_add_request_header
-func coraza_add_request_header(t C.coraza_transaction_t, name *C.char, value *C.char) C.int {
+func coraza_add_request_header(t C.coraza_transaction_t, name *C.char, name_len C.int, value *C.char, value_len C.int) C.int {
 	tx := ptrToTransaction(t)
-	tx.AddRequestHeader(C.GoString(name), C.GoString(value))
+	tx.AddRequestHeader(C.GoStringN(name, name_len), C.GoStringN(value, value_len))
 	return 0
 }
 
@@ -132,30 +139,36 @@ func coraza_process_logging(t C.coraza_transaction_t) C.int {
 }
 
 //export coraza_append_request_body
-func coraza_append_request_body(t C.coraza_transaction_t, data *C.char, length C.int) C.int {
+func coraza_append_request_body(t C.coraza_transaction_t, data *C.uchar, length C.int) C.int {
 	tx := ptrToTransaction(t)
-	tx.RequestBodyBuffer.Write(C.GoBytes(unsafe.Pointer(data), length))
+	if _, err := tx.RequestBodyBuffer.Write(C.GoBytes(unsafe.Pointer(data), length)); err != nil {
+		return 1
+	}
 	return 0
 }
 
 //export coraza_add_response_header
-func coraza_add_response_header(t C.coraza_transaction_t, name *C.char, value *C.char) C.int {
+func coraza_add_response_header(t C.coraza_transaction_t, name *C.char, name_len C.int, value *C.char, value_len C.int) C.int {
 	tx := ptrToTransaction(t)
-	tx.AddResponseHeader(C.GoString(name), C.GoString(value))
+	tx.AddResponseHeader(C.GoStringN(name, name_len), C.GoStringN(value, value_len))
 	return 0
 }
 
 //export coraza_append_response_body
-func coraza_append_response_body(t C.coraza_transaction_t, data *C.char, length C.int) C.int {
+func coraza_append_response_body(t C.coraza_transaction_t, data *C.uchar, length C.int) C.int {
 	tx := ptrToTransaction(t)
-	tx.ResponseBodyBuffer.Write(C.GoBytes(unsafe.Pointer(data), length))
+	if _, err := tx.ResponseBodyBuffer.Write(C.GoBytes(unsafe.Pointer(data), length)); err != nil {
+		return 1
+	}
 	return 0
 }
 
 //export coraza_process_response_body
 func coraza_process_response_body(t C.coraza_transaction_t) C.int {
 	tx := ptrToTransaction(t)
-	tx.ProcessResponseBody()
+	if _, err := tx.ProcessResponseBody(); err != nil {
+		return 1
+	}
 	return 0
 }
 
@@ -178,8 +191,8 @@ func coraza_rules_add_file(w C.coraza_waf_t, file *C.char, er **C.char) C.int {
 	return 1
 }
 
-//export coraza_rules_from_string
-func coraza_rules_from_string(w C.coraza_waf_t, directives *C.char, er **C.char) C.int {
+//export coraza_rules_add
+func coraza_rules_add(w C.coraza_waf_t, directives *C.char, er **C.char) C.int {
 	waf := ptrToWaf(w)
 	if err := corazaRulesFromString(waf, C.GoString(directives)); err != nil {
 		*er = C.CString(err.Error())
@@ -193,6 +206,65 @@ func coraza_rules_from_string(w C.coraza_waf_t, directives *C.char, er **C.char)
 func coraza_rules_count(w C.coraza_waf_t) C.int {
 	waf := ptrToWaf(w)
 	return C.int(waf.Rules.Count())
+}
+
+/**
+ * Returns an array of strings containing the transaction data
+ * @param[in] name of the variable (must be valid)
+ * @param[in] key of the variable (can be empty)
+ * @returns An array of C strings or nil in case of any error
+ */
+//export coraza_transaction_variable
+func coraza_transaction_variable(t C.coraza_transaction_t, name *C.char, key *C.char) **C.char {
+	tx := ptrToTransaction(t)
+	v, err := variables.Parse(C.GoString(name))
+	if err != nil {
+		return nil
+	}
+	val := tx.GetCollection(v)
+	if val == nil {
+		return nil
+	}
+	res := val.Get(C.GoString(key))
+	// return a C array of strings
+	if len(res) == 0 {
+		return nil
+	}
+	return sliceToC(res)
+}
+
+//export coraza_transaction_free
+func coraza_transaction_free(t C.coraza_transaction_t) C.int {
+	tx := ptrToTransaction(t)
+	defer C.free(unsafe.Pointer(t))
+	if tx.Clean() != nil {
+		return 1
+	}
+	return 0
+}
+
+//export coraza_rules_merge
+func coraza_rules_merge(w1 C.coraza_waf_t, w2 C.coraza_waf_t, er **C.char) C.int {
+	waf1 := ptrToWaf(w1)
+	waf2 := ptrToWaf(w2)
+	for _, r := range waf2.Rules.GetRules() {
+		waf1.Rules.Add(r)
+	}
+	return 0
+}
+
+//export coraza_request_body_from_file
+func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int {
+	tx := ptrToTransaction(t)
+	f, err := os.Open(C.GoString(file))
+	if err != nil {
+		return 1
+	}
+	defer f.Close()
+	if _, err := io.Copy(tx.RequestBodyBuffer, f); err != nil {
+		return 1
+	}
+	return 0
 }
 
 /*
@@ -235,6 +307,19 @@ func corazaRulesFromString(w *coraza.Waf, directives string) error {
 // It should just be C.CString(s) but we need this to build tests
 func stringToC(s string) *C.char {
 	return C.CString(s)
+}
+
+func sliceToC(s []string) **C.char {
+	cArray := C.malloc(C.size_t(len(s)) * C.size_t(unsafe.Sizeof(uintptr(0))))
+
+	// convert the C array to a Go Array so we can index it
+	a := (*[1<<30 - 1]*C.char)(cArray)
+
+	for idx, substring := range s {
+		a[idx] = C.CString(substring)
+	}
+
+	return (**C.char)(cArray)
 }
 
 func main() {}
