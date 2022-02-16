@@ -1,0 +1,7 @@
+*.dylib
+*.so
+*.a
+*.o
+*.h
+docs/
+.vscode/
