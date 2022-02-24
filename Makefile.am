@@ -25,13 +25,10 @@ build-linux:
 build-osx:
 	CC=@CC@ go build -buildmode=c-archive -o coraza_core.dylib libcoraza-core/core.go
 	CC=@CC@ go build -buildmode=c-archive -o coraza_utils.dylib libcoraza-utils/utils.go
-	mv libcorazacore.h coraza_core.h
-	mv libcorazautils.h coraza_utils.h
 
 install-linux:
-	test -d @prefix@ || mkdir -p @prefix@
-	test -d @prefix@/lib || mkdir -p @prefix@/lib
-	test -d @prefix@/include || mkdir -p @prefix@/include
+	@INSTALL@ -d @prefix@/lib
+	@INSTALL@ -d @prefix@/include
 	@INSTALL@ libcorazacore.a @prefix@/lib/
 	@INSTALL@ libcorazautils.a @prefix@/lib/
 	@INSTALL@ libcorazacore.so @prefix@/lib/
@@ -40,10 +37,12 @@ install-linux:
 	@INSTALL@ coraza_utils.h @prefix@/include/
 
 install-osx:
-	mkdir -p /usr/local/coraza/lib
-	mkdir -p /usr/local/coraza/include
-	mv coraza_core.dylib coraza_core.a /usr/local/coraza/lib/
-	mv coraza_core.h /usr/local/coraza/include/
+	@INSTALL@ -d @prefix@/lib
+	@INSTALL@ -d @prefix@/include
+	@INSTALL@ coraza_core.dylib @prefix@/lib/
+	@INSTALL@ coraza_core.a @prefix@/lib/
+	@INSTALL@ coraza_core.h @prefix@/include/
+	@INSTALL@ coraza_utils.h @prefix@/include/
 
 test-linux: build-linux
 	cd tests && make test

@@ -4,7 +4,8 @@ AC_INIT([libcoraza],
     [libcoraza],
     [https://github.com/corazawaf/libcoraza])
 
-AM_INIT_AUTOMAKE
+# General automake options.
+AM_INIT_AUTOMAKE([-Wall -Werror])
 AC_CONFIG_MACRO_DIR([macros])
 AC_CONFIG_HEADERS([config.h])
 
@@ -14,9 +15,6 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # General definitions
 AC_PREFIX_DEFAULT([/usr/local])
-
-# General automake options.
-AM_INIT_AUTOMAKE([-Wall -Werror])
 
 # Check for dependencies: C, AR, Make
 AC_PROG_CC
