@@ -14,7 +14,7 @@ int main()
     }
     char *err = NULL;
     printf("Compiling rules...\n");
-    coraza_rules_from_string(waf, "SecRule REMOTE_ADDR \"127.0.0.1\" \"id:1,phase:1,deny,status:403\"", &err);
+    coraza_rules_add(waf, "SecRule REMOTE_ADDR \"127.0.0.1\" \"id:1,phase:1,deny,status:403\"", &err);
     if(err) {
         printf("%s\n", err);
         return 1;
