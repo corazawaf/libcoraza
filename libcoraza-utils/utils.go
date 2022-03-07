@@ -1,5 +1,11 @@
 package main
 
+/*
+#ifndef _CORAZA_UTILS_H_
+#define _CORAZA_UTILS_H_
+
+#endif
+*/
 import "net/url"
 
 import "C"
@@ -16,3 +22,4 @@ func coraza_url_decode(input *C.char, out **C.char) C.int {
 }
 
 func main() {}
+
