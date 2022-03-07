@@ -7,7 +7,7 @@ if LINUX
 SHARED_EXT=so
 endif
 if OSX
-SHARED_EXT=dynlib
+SHARED_EXT=dylib
 endif
 
 all: build

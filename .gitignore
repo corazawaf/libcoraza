@@ -3,6 +3,7 @@
 *.a
 *.o
 *.h
+*~
 docs/
 .vscode/
 .deps/

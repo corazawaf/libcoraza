@@ -14,7 +14,7 @@ test-linux: build-linux
 	LD_LIBRARY_PATH=../ ./simple_get
 
 build-osx:
-	@CC@ -I../ ../coraza_core.so simple_get.c -o simple_get
+	@CC@ -I../ ../libcorazacore.dylib simple_get.c -o simple_get
 test-osx: build-osx
 	LD_LIBRARY_PATH=../ ./simple_get
 
