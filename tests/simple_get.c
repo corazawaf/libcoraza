@@ -56,10 +56,23 @@ int main()
         return 1;
     }
     printf("Request URI: %s\n", *uri);
+    free(uri);
 
     if(coraza_transaction_free(tx) != 0) {
-        printf("Failed to free transaction\n");
+        printf("Failed to free transaction 1\n");
         return 1;
     }
+    /*
+    if(tx != NULL) {
+        printf("Failed to free transaction 2\n");
+        return 1;
+    }*/
+    free(intervention);
+    coraza_free_waf(waf);
+    /*
+    if(waf != NULL) {
+        printf("Failed to free WAF\n");
+        return 1;
+    }*/
     return 0;
 }

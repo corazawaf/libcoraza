@@ -267,6 +267,19 @@ func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int
 	return 0
 }
 
+//export coraza_free_waf
+func coraza_free_waf(t C.coraza_waf_t) C.int {
+	waf := ptrToWaf(t)
+	if waf == nil {
+		return 1
+	}
+	defer C.free(unsafe.Pointer(t))
+	waf.Logger = nil
+	waf.AuditLogRelevantStatus = nil
+	// TODO there are more private members to free
+	return 0
+}
+
 /*
 Internal helpers
 */
