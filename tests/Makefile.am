@@ -1,22 +1,15 @@
 
-if LINUX
-all: build-linux
-test: test-linux
-endif
+bin_PROGRAMS = simple_get
+simple_get_SOURCES = simple_get.c
+
 if OSX
-all: build-osx
-test: test-osx
+AM_LDFLAGS = -framework CoreFoundation
 endif
 
-build-linux:
-	@CC@ -I../ -L../ simple_get.c -o simple_get -lcorazacore
-test-linux: build-linux
-	LD_LIBRARY_PATH=../ ./simple_get
+simple_get_LDFLAGS = $(AM_LDFLAGS) -I../ -L../ -R$(PWD)/../
 
-build-osx:
-	@CC@ -I../ ../libcorazacore.dylib simple_get.c -o simple_get
-test-osx: build-osx
-	LD_LIBRARY_PATH=../ ./simple_get
+simple_get_LDADD = -lcorazacore
 
-clean-local:
-	rm -f simple_get
+test: simple_get
+
+.PHONY = test

@@ -1,17 +1,18 @@
 package main
 
 /*
-#ifndef _CORAZA_H_
-#define _CORAZA_H_
+#ifndef _CORAZA_CORE_H_
+#define _CORAZA_CORE_H_
 #include <stdio.h>
 #include <stdlib.h>
+
 typedef struct coraza_intervention_t
 {
 	char *action;
 	char *log;
+    char *url;
     int status;
     int pause;
-    char *url;
     int disruptive;
 } coraza_intervention_t;
 
@@ -336,3 +337,4 @@ func sliceToC(s []string) **C.char {
 }
 
 func main() {}
+
