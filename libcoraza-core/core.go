@@ -234,13 +234,25 @@ func coraza_transaction_variable(t C.coraza_transaction_t, name *C.char, key *C.
 	return sliceToC(res)
 }
 
-//export coraza_transaction_free
-func coraza_transaction_free(t C.coraza_transaction_t) C.int {
+//export coraza_free_transaction
+func coraza_free_transaction(t C.coraza_transaction_t) C.int {
 	tx := ptrToTransaction(t)
 	defer C.free(unsafe.Pointer(t))
 	if tx.Clean() != nil {
 		return 1
 	}
+	return 0
+}
+
+//export coraza_free_intervention
+func coraza_free_intervention(it *C.coraza_intervention_t) C.int {
+	if it == nil {
+		return 1
+	}
+	defer C.free(unsafe.Pointer(it))
+	C.free(unsafe.Pointer(it.log))
+	C.free(unsafe.Pointer(it.url))
+	C.free(unsafe.Pointer(it.action))
 	return 0
 }
 
@@ -337,4 +349,3 @@ func sliceToC(s []string) **C.char {
 }
 
 func main() {}
-
