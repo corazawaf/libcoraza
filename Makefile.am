@@ -1,7 +1,7 @@
 
 ACLOCAL_AMFLAGS = -I macros
 
-CLEANFILES = *.o *.so *.slo *.lo *.la *.h *.dylib
+CLEANFILES = *.a *.h *.o *.so *.slo *.lo *.la *.h *.dylib
 
 SUBDIRS = tests
 
