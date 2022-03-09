@@ -3,6 +3,7 @@
 *.a
 *.o
 *.h
+*~
 docs/
 .vscode/
 .deps/
@@ -27,3 +28,6 @@ missing
 stamp-h1
 tests/simple_get
 tests/Makefile
+depcomp
+_obj/
+.libs/
