@@ -61,7 +61,15 @@ int main()
         return 1;
     }
     printf("Request URI: %s\n", *uri);
-    free(uri);
+    if (uri != NULL)
+    {
+        int i = 0;
+        while (uri[i] != NULL)
+        {
+            free(uri[i++]);
+        }
+        free(uri);
+    }
 
     if(coraza_free_transaction(tx) != 0) {
         printf("Failed to free transaction 1\n");
