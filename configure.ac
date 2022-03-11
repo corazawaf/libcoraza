@@ -1,13 +1,16 @@
+AC_PREREQ([2.60])
+
 AC_INIT([libcoraza],
-    [0.1],
-    [],
-    [libcoraza],
-    [https://github.com/corazawaf/libcoraza])
+        m4_esyscmd([build-aux/git-version-gen .tarball-version]),
+        [https://github.com/corazawaf/libcoraza/issues],
+        [libcoraza],
+        [https://github.com/corazawaf/libcoraza])
 
 # General automake options.
-AM_INIT_AUTOMAKE([-Wall -Werror])
-AC_CONFIG_MACRO_DIR([macros])
+AC_CONFIG_MACRO_DIRS([macros build-aux])
 AC_CONFIG_HEADERS([config.h])
+
+AM_INIT_AUTOMAKE([-Wall -Werror])
 
 dnl Disable verbose mode
 dnl To enable, use --disable-silent-rules
@@ -58,8 +61,11 @@ AM_CONDITIONAL([OSX], [test "$build_mac" = "yes"])
 LT_INIT
 
 # There is only one Makefile
-AC_CONFIG_FILES([Makefile
-tests/Makefile])
+AC_CONFIG_FILES([
+                 Makefile
+                 Doxyfile
+                 tests/Makefile
+                 ])
 
 AC_OUTPUT
 

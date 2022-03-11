@@ -31,3 +31,4 @@ tests/Makefile
 depcomp
 _obj/
 .libs/
+Doxyfile
