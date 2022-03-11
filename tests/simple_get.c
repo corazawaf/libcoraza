@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include "coraza_core.h"
+
+#include "coraza/core.h"
 
 int main()
 {

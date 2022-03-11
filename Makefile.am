@@ -12,12 +12,14 @@ if OSX
 SHARED_EXT=dylib
 endif
 
-all: coraza_core.h coraza_utils.h libcorazacore.a libcorazautils.a libcorazacore.$(SHARED_EXT) libcorazautils.$(SHARED_EXT)
+all: coraza/core.h coraza/utils.h libcorazacore.a libcorazautils.a libcorazacore.$(SHARED_EXT) libcorazautils.$(SHARED_EXT)
 
-coraza_core.h: libcoraza-core/core.go
+coraza/core.h: libcoraza-core/core.go
+	@mkdir -p coraza
 	go tool cgo -exportheader $@ $<
 
-coraza_utils.h: libcoraza-utils/utils.go
+coraza/utils.h: libcoraza-utils/utils.go
+	@mkdir -p coraza
 	go tool cgo -exportheader $@ $<
 
 libcorazacore.a: libcoraza-core/core.go
@@ -39,8 +41,8 @@ install-data-local: test
 	@INSTALL@ libcorazautils.a $(DESTDIR)@prefix@/lib/
 	@INSTALL@ libcorazacore.$(SHARED_EXT) $(DESTDIR)@prefix@/lib/
 	@INSTALL@ libcorazautils.$(SHARED_EXT) $(DESTDIR)@prefix@/lib/
-	@INSTALL@ coraza_core.h $(DESTDIR)@prefix@/include/coraza/core.h
-	@INSTALL@ coraza_utils.h $(DESTDIR)@prefix@/include/coraza/utils.h
+	@INSTALL@ coraza/core.h $(DESTDIR)@prefix@/include/coraza/core.h
+	@INSTALL@ coraza/utils.h $(DESTDIR)@prefix@/include/coraza/utils.h
 
 .PHONY: docs
 docs:
