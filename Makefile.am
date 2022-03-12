@@ -34,7 +34,7 @@ libcorazacore.$(SHARED_EXT): libcoraza-core/core.go
 libcorazautils.$(SHARED_EXT): libcoraza-utils/utils.go
 	go build -buildmode=c-shared -o $@ $<
 
-install-data-local: all test
+install-data-local: all
 	@INSTALL@ -d $(DESTDIR)@prefix@/lib
 	@INSTALL@ -d $(DESTDIR)@prefix@/include/coraza
 	@INSTALL@ libcorazacore.a $(DESTDIR)@prefix@/lib/
