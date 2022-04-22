@@ -42,6 +42,21 @@ make
 ./simple_get
 ```
 
+## Build offline or different branch/commit
+
+If you want to compile the library from different branch/commit than
+master or HEAD, or want to make package offline, get the code and use
+it as vendor:
+
+```
+go get -u github.com/corazawaf/coraza/v2@HASH-ID
+go mod vendor
+go mod tidy
+autoreconf --install
+./configure
+make
+```
+
 If you didn't installed the builded library (skipped the `sudo make install` step), you should set the LD_LIBRARY_PATH:
 
 ```
