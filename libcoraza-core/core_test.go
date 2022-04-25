@@ -12,7 +12,7 @@ var waf *coraza.Waf
 var wafPtr unsafe.Pointer
 
 func TestWafInitialization(t *testing.T) {
-	waf2 := coraza_new_waf()
+	waf2 := coraza_new_waf(nil)
 	wafPtr = unsafe.Pointer(waf2)
 	if wafPtr == nil {
 		t.Fatal("Waf initialization failed")
@@ -38,7 +38,7 @@ func TestWafIsConsistent(t *testing.T) {
 }
 
 func TestAddRulesToWaf(t *testing.T) {
-	waf := coraza_new_waf()
+	waf := coraza_new_waf(nil)
 	w := ptrToWaf(waf)
 	if err := corazaRulesFromString(w, `SecRule UNIQUE_ID "" "id:1"`); err != nil {
 		t.Fatal("Error adding rule: ", err)
@@ -70,14 +70,14 @@ func TestTransactionInitialization(t *testing.T) {
 }
 
 func BenchmarkTransactionCreation(b *testing.B) {
-	waf := coraza_new_waf()
+	waf := coraza_new_waf(nil)
 	for i := 0; i < b.N; i++ {
 		coraza_new_transaction(waf, nil)
 	}
 }
 
 func BenchmarkTransactionProcessing(b *testing.B) {
-	waf := coraza_new_waf()
+	waf := coraza_new_waf(nil)
 	coraza_rules_add(waf, stringToC(`SecRule UNIQUE_ID "" "id:1"`), nil)
 	for i := 0; i < b.N; i++ {
 		txPtr := coraza_new_transaction(waf, nil)
