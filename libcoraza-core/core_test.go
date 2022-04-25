@@ -51,7 +51,7 @@ func TestAddRulesToWaf(t *testing.T) {
 }
 
 func TestTransactionInitialization(t *testing.T) {
-	waf := coraza_new_waf()
+	waf := coraza_new_waf(nil)
 	tt := coraza_new_transaction(waf, nil)
 	if tt == nil {
 		t.Fatal("Transaction initialization failed")
@@ -78,7 +78,7 @@ func BenchmarkTransactionCreation(b *testing.B) {
 
 func BenchmarkTransactionProcessing(b *testing.B) {
 	waf := coraza_new_waf()
-	coraza_rules_from_string(waf, stringToC(`SecRule UNIQUE_ID "" "id:1"`), nil)
+	coraza_rules_add(waf, stringToC(`SecRule UNIQUE_ID "" "id:1"`), nil)
 	for i := 0; i < b.N; i++ {
 		txPtr := coraza_new_transaction(waf, nil)
 		tx := ptrToTransaction(txPtr)

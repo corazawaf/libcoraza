@@ -19,7 +19,7 @@ typedef struct coraza_intervention_t
 typedef void* coraza_waf_t;
 typedef void* coraza_transaction_t;
 
-//typedef void (*coraza_log_cb)(void *, const void *);
+typedef void (*coraza_log_cb)(void *, const void *);
 #endif
 */
 import "C"
@@ -40,8 +40,18 @@ import (
  * @returns pointer to WAF instance
  */
 //export coraza_new_waf
-func coraza_new_waf() C.coraza_waf_t {
+func coraza_new_waf(logCb C.coraza_log_cb) C.coraza_waf_t {
 	waf := coraza.NewWaf()
+	if logCb != nil {
+		f3 := *(*func(unsafe.Pointer, unsafe.Pointer))(unsafe.Pointer(&logCb))
+		waf.SetErrorLogCb(func(msg coraza.MatchedRule) {
+			// We will set 999 until we fix this design issue in coraza
+			// We should Create a new msg.Log() function without parameters and we should add status to the matched rule
+			// TODO for v3 we should update ErrorLogCb to func(*Transaction, *MatchedRule)
+			er := C.CString(msg.ErrorLog(999))
+			f3(nil, unsafe.Pointer(&er))
+		})
+	}
 	return wafToPtr(waf)
 }
 
@@ -52,14 +62,14 @@ func coraza_new_waf() C.coraza_waf_t {
  * @returns pointer to transaction
  */
 //export coraza_new_transaction
-func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_transaction_t {
+func coraza_new_transaction(waf C.coraza_waf_t, logCb C.coraza_log_cb) C.coraza_transaction_t {
 	w := ptrToWaf(waf)
 	tx := w.NewTransaction()
 	return transactionToPtr(tx)
 }
 
 //export coraza_new_transaction_with_id
-func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char, logCb unsafe.Pointer) C.coraza_transaction_t {
+func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char, logCb C.coraza_log_cb) C.coraza_transaction_t {
 	idd := C.GoString(id)
 	txPtr := coraza_new_transaction(waf, logCb)
 	tx := ptrToTransaction(txPtr)
