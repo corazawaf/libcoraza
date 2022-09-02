@@ -1,10 +1,11 @@
 package main
 
 /*
-#ifndef _CORAZA_CORE_H_
-#define _CORAZA_CORE_H_
+#ifndef _LIBCORAZA_H_
+#define _LIBCORAZA_H_
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 typedef struct coraza_intervention_t
 {
@@ -115,7 +116,8 @@ func coraza_update_status_code(t C.coraza_transaction_t, code C.int) C.int {
 	return 0
 }
 
-//msr->t, r->unparsed_uri, r->method, r->protocol + offset
+// msr->t, r->unparsed_uri, r->method, r->protocol + offset
+//
 //export coraza_process_uri
 func coraza_process_uri(t C.coraza_transaction_t, uri *C.char, method *C.char, proto *C.char) C.int {
 	tx := ptrToTransaction(t)

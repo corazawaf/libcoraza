@@ -33,3 +33,4 @@ depcomp
 _obj/
 .libs/
 Doxyfile
+.dirstamp
