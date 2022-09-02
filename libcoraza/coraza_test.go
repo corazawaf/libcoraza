@@ -4,19 +4,15 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/jptosso/coraza-waf/v2"
-	"github.com/jptosso/coraza-waf/v2/types/variables"
+	"github.com/corazawaf/coraza/v3"
 )
 
-var waf *coraza.Waf
-var wafPtr unsafe.Pointer
+var waf *coraza.WAF
+var wafPtr uintptr
 
 func TestWafInitialization(t *testing.T) {
 	waf2 := coraza_new_waf()
-	wafPtr = unsafe.Pointer(waf2)
-	if wafPtr == nil {
-		t.Fatal("Waf initialization failed")
-	}
+	wafPtr = uintptr(unsafe.Pointer(waf2))
 
 	w := ptrToWaf(waf2)
 	if w.RequestBodyInMemoryLimit == 0 {
@@ -30,7 +26,7 @@ func TestWafIsConsistent(t *testing.T) {
 	if waf == nil {
 		TestWafInitialization(t)
 	}
-	w := *(*coraza.Waf)((*[1]*coraza.Waf)(wafPtr)[0])
+	w := wafMap[wafPtr]
 
 	if w.WebAppID != waf.WebAppID {
 		t.Fatal("Waf initialization is inconsistent, got web app id: ", w.WebAppID)
@@ -63,10 +59,23 @@ func TestTransactionInitialization(t *testing.T) {
 	if tx.ID != id || id == "" {
 		t.Fatalf("Transaction initialization failed, %q != %q ", tx.ID, id)
 	}
-	if tx.GetCollection(variables.RemoteAddr).GetFirstString("") != "127.0.0.1" {
+	if tx.Variables.RemoteAddr.String() != "127.0.0.1" {
 		t.Fatal("Transaction initialization failed")
 	}
 	tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
+}
+
+func TestTxCleaning(t *testing.T) {
+	waf := coraza_new_waf()
+	txPtr := coraza_new_transaction(waf, nil)
+	tx := ptrToTransaction(txPtr)
+	if tx == nil || tx.ID == "" {
+		t.Fatal("Transaction ID is empty")
+	}
+	coraza_free_transaction(txPtr)
+	if _, ok := txMap[uintptr(txPtr)]; ok {
+		t.Fatal("Transaction was not removed from the map")
+	}
 }
 
 func BenchmarkTransactionCreation(b *testing.B) {
@@ -78,7 +87,7 @@ func BenchmarkTransactionCreation(b *testing.B) {
 
 func BenchmarkTransactionProcessing(b *testing.B) {
 	waf := coraza_new_waf()
-	coraza_rules_from_string(waf, stringToC(`SecRule UNIQUE_ID "" "id:1"`), nil)
+	coraza_rules_add(waf, stringToC(`SecRule UNIQUE_ID "" "id:1"`), nil)
 	for i := 0; i < b.N; i++ {
 		txPtr := coraza_new_transaction(waf, nil)
 		tx := ptrToTransaction(txPtr)

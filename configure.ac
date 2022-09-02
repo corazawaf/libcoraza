@@ -64,7 +64,6 @@ LT_INIT
 AC_CONFIG_FILES([
                  Makefile
                  Doxyfile
-                 tests/Makefile
                  ])
 
 AC_OUTPUT

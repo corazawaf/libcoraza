@@ -1,18 +1,18 @@
 #include <stdio.h>
 
-#include "coraza/core.h"
+#include "coraza/coraza.h"
 
 int main()
 {
-    coraza_waf_t *waf = NULL;
-    coraza_transaction_t *tx = NULL;
+    coraza_waf_t waf = 0;
+    coraza_transaction_t tx = 0;
     coraza_intervention_t *intervention = NULL;
     char *err = NULL;
     char ** uri = NULL;
 
     printf("Starting...\n");
-    waf = coraza_new_waf();
-    if (waf == NULL) {
+    waf = coraza_new_waf(NULL);
+    if (waf == 0) {
         printf("Failed to create waf\n");
         return 1;
     }
@@ -27,7 +27,7 @@ int main()
     printf("%d rules compiled\n", coraza_rules_count(waf));
     printf("Creating transaction...\n");
     tx = coraza_new_transaction(waf, NULL);
-    if(tx == NULL) {
+    if(tx == 0) {
         printf("Failed to create transaction\n");
         return 1;
     }
@@ -55,22 +55,6 @@ int main()
         return 1;
     }
     printf("Transaction disrupted with status %d\n", intervention->status);
-
-    uri = coraza_transaction_variable(tx, "request_uri", "");
-    if(uri == NULL) {
-        printf("Failed to get request_uri\n");
-        return 1;
-    }
-    printf("Request URI: %s\n", *uri);
-    if (uri != NULL)
-    {
-        int i = 0;
-        while (uri[i] != NULL)
-        {
-            free(uri[i++]);
-        }
-        free(uri);
-    }
 
     if(coraza_free_transaction(tx) != 0) {
         printf("Failed to free transaction 1\n");

@@ -1,3 +1,4 @@
+.idea/
 *.dylib
 *.so
 *.a
@@ -32,3 +33,4 @@ depcomp
 _obj/
 .libs/
 Doxyfile
+.dirstamp
