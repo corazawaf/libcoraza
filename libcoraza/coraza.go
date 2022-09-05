@@ -20,6 +20,8 @@ typedef struct coraza_intervention_t
 typedef uint64_t coraza_waf_t;
 typedef uint64_t coraza_transaction_t;
 
+typedef void (*coraza_log_cb) (const void *);
+void send_log_to_cb(coraza_log_cb cb, const char *msg);
 #endif
 */
 import "C"
@@ -34,6 +36,7 @@ import (
 	"github.com/corazawaf/coraza/v3"
 
 	"github.com/corazawaf/coraza/v3/seclang"
+	"github.com/corazawaf/coraza/v3/types"
 )
 
 var wafMap = make(map[uint64]*coraza.WAF)
@@ -243,7 +246,10 @@ func coraza_rules_merge(w1 C.coraza_waf_t, w2 C.coraza_waf_t, er **C.char) C.int
 	waf1 := ptrToWaf(w1)
 	waf2 := ptrToWaf(w2)
 	for _, r := range waf2.Rules.GetRules() {
-		waf1.Rules.Add(r)
+		if err := waf1.Rules.Add(r); err != nil {
+			*er = C.CString(err.Error())
+			return 0
+		}
 	}
 	return 0
 }
@@ -267,6 +273,14 @@ func coraza_free_waf(t C.coraza_waf_t) C.int {
 	// waf := ptrToWaf(t)
 	delete(wafMap, uint64(t))
 	return 0
+}
+
+//export coraza_set_log_cb
+func coraza_set_log_cb(waf C.coraza_waf_t, cb C.coraza_log_cb) {
+	w := ptrToWaf(waf)
+	w.SetErrorLogCb(func(mr types.MatchedRule) {
+		C.send_log_to_cb(cb, C.CString(mr.ErrorLog(403)))
+	})
 }
 
 /*
@@ -302,19 +316,6 @@ func corazaRulesFromString(w *coraza.WAF, directives string) error {
 // It should just be C.CString(s) but we need this to build tests
 func stringToC(s string) *C.char {
 	return C.CString(s)
-}
-
-func sliceToC(s []string) **C.char {
-	cArray := C.malloc(C.size_t(len(s)) * C.size_t(unsafe.Sizeof(uintptr(0))))
-
-	// convert the C array to a Go Array so we can index it
-	a := (*[1<<30 - 1]*C.char)(cArray)
-
-	for idx, substring := range s {
-		a[idx] = C.CString(substring)
-	}
-
-	return (**C.char)(cArray)
 }
 
 func main() {}
