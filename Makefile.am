@@ -13,15 +13,15 @@ endif
 
 all: coraza/coraza.h libcoraza.a libcoraza.$(SHARED_EXT)
 
-coraza/coraza.h: libcoraza/coraza.go
+coraza/coraza.h: libcoraza/coraza.go libcoraza/log.go
 	@mkdir -p coraza
-	go tool cgo -exportheader $@ $<
+	go tool cgo -exportheader $@ $^
 
-libcoraza.a: libcoraza/coraza.go
-	go build -buildmode=c-archive -o $@ $<
+libcoraza.a: libcoraza/coraza.go libcoraza/log.go
+	go build -buildmode=c-archive -o $@ $^
 
-libcoraza.$(SHARED_EXT): libcoraza/coraza.go
-	go build -buildmode=c-shared -o $@ $<
+libcoraza.$(SHARED_EXT): libcoraza/coraza.go libcoraza/log.go
+	go build -buildmode=c-shared -o $@ $^
 
 install-data-local: all check
 	@INSTALL@ -d $(DESTDIR)@prefix@/lib

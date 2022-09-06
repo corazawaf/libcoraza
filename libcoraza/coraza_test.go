@@ -2,17 +2,16 @@ package main
 
 import (
 	"testing"
-	"unsafe"
 
 	"github.com/corazawaf/coraza/v3"
 )
 
 var waf *coraza.WAF
-var wafPtr uintptr
+var wafPtr uint64
 
 func TestWafInitialization(t *testing.T) {
 	waf2 := coraza_new_waf()
-	wafPtr = uintptr(unsafe.Pointer(waf2))
+	wafPtr = uint64(waf2)
 
 	w := ptrToWaf(waf2)
 	if w.RequestBodyInMemoryLimit == 0 {
@@ -49,7 +48,7 @@ func TestAddRulesToWaf(t *testing.T) {
 func TestTransactionInitialization(t *testing.T) {
 	waf := coraza_new_waf()
 	tt := coraza_new_transaction(waf, nil)
-	if tt == nil {
+	if tt == 0 {
 		t.Fatal("Transaction initialization failed")
 	}
 	tx := ptrToTransaction(tt)
@@ -73,7 +72,7 @@ func TestTxCleaning(t *testing.T) {
 		t.Fatal("Transaction ID is empty")
 	}
 	coraza_free_transaction(txPtr)
-	if _, ok := txMap[uintptr(txPtr)]; ok {
+	if _, ok := txMap[uint64(txPtr)]; ok {
 		t.Fatal("Transaction was not removed from the map")
 	}
 }
