@@ -20,7 +20,7 @@ typedef struct coraza_intervention_t
 typedef uint64_t coraza_waf_t;
 typedef uint64_t coraza_transaction_t;
 
-typedef void (*coraza_log_cb) (const void *);
+typedef void (*coraza_log_cb) (void *, const void *);
 void send_log_to_cb(coraza_log_cb cb, const char *msg);
 #endif
 */
@@ -61,7 +61,7 @@ func coraza_new_waf() C.coraza_waf_t {
  * @returns pointer to transaction
  */
 //export coraza_new_transaction
-func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_transaction_t {
+func coraza_new_transaction(waf C.coraza_waf_t) C.coraza_transaction_t {
 	w := ptrToWaf(waf)
 	tx := w.NewTransaction(context.Background())
 	ptr := transactionToPtr(tx)
@@ -70,9 +70,9 @@ func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_t
 }
 
 //export coraza_new_transaction_with_id
-func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char, logCb unsafe.Pointer) C.coraza_transaction_t {
+func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char) C.coraza_transaction_t {
 	idd := C.GoString(id)
-	txPtr := coraza_new_transaction(waf, logCb)
+	txPtr := coraza_new_transaction(waf)
 	tx := ptrToTransaction(txPtr)
 	tx.ID = idd
 	tx.Variables.UniqueID.Set(idd)
@@ -252,6 +252,15 @@ func coraza_rules_merge(w1 C.coraza_waf_t, w2 C.coraza_waf_t, er **C.char) C.int
 		}
 	}
 	return 0
+}
+
+//export coraza_rules_dump
+func coraza_rules_dump(w C.coraza_waf_t) C.int {
+    waf := ptrToWaf(w)
+    for _, r := range waf.Rules.GetRules() {
+        fmt.Fprintln(os.Stderr, "%v\n", r)
+    }
+    return 0
 }
 
 //export coraza_request_body_from_file
