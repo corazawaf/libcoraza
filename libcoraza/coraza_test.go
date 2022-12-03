@@ -47,7 +47,7 @@ func TestAddRulesToWaf(t *testing.T) {
 
 func TestTransactionInitialization(t *testing.T) {
 	waf := coraza_new_waf()
-	tt := coraza_new_transaction(waf, nil)
+	tt := coraza_new_transaction(waf)
 	if tt == 0 {
 		t.Fatal("Transaction initialization failed")
 	}
@@ -66,7 +66,7 @@ func TestTransactionInitialization(t *testing.T) {
 
 func TestTxCleaning(t *testing.T) {
 	waf := coraza_new_waf()
-	txPtr := coraza_new_transaction(waf, nil)
+	txPtr := coraza_new_transaction(waf)
 	tx := ptrToTransaction(txPtr)
 	if tx == nil || tx.ID == "" {
 		t.Fatal("Transaction ID is empty")
@@ -80,7 +80,7 @@ func TestTxCleaning(t *testing.T) {
 func BenchmarkTransactionCreation(b *testing.B) {
 	waf := coraza_new_waf()
 	for i := 0; i < b.N; i++ {
-		coraza_new_transaction(waf, nil)
+		coraza_new_transaction(waf)
 	}
 }
 
@@ -88,7 +88,7 @@ func BenchmarkTransactionProcessing(b *testing.B) {
 	waf := coraza_new_waf()
 	coraza_rules_add(waf, stringToC(`SecRule UNIQUE_ID "" "id:1"`), nil)
 	for i := 0; i < b.N; i++ {
-		txPtr := coraza_new_transaction(waf, nil)
+		txPtr := coraza_new_transaction(waf)
 		tx := ptrToTransaction(txPtr)
 		tx.ProcessConnection("127.0.0.1", 55555, "127.0.0.1", 80)
 		tx.ProcessURI("https://www.example.com/some?params=123", "GET", "HTTP/1.1")

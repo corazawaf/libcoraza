@@ -61,7 +61,7 @@ func coraza_new_waf() C.coraza_waf_t {
  * @returns pointer to transaction
  */
 //export coraza_new_transaction
-func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_transaction_t {
+func coraza_new_transaction(waf C.coraza_waf_t) C.coraza_transaction_t {
 	w := ptrToWaf(waf)
 	tx := w.NewTransaction(context.Background())
 	ptr := transactionToPtr(tx)
@@ -70,9 +70,9 @@ func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_t
 }
 
 //export coraza_new_transaction_with_id
-func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char, logCb unsafe.Pointer) C.coraza_transaction_t {
+func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char) C.coraza_transaction_t {
 	idd := C.GoString(id)
-	txPtr := coraza_new_transaction(waf, logCb)
+	txPtr := coraza_new_transaction(waf)
 	tx := ptrToTransaction(txPtr)
 	tx.ID = idd
 	tx.Variables.UniqueID.Set(idd)

@@ -34,7 +34,7 @@ int main()
 
     printf("%d rules compiled\n", coraza_rules_count(waf));
     printf("Creating transaction...\n");
-    tx = coraza_new_transaction(waf, NULL);
+    tx = coraza_new_transaction(waf);
     if(tx == 0) {
         printf("Failed to create transaction\n");
         return 1;
