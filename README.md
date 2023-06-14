@@ -7,7 +7,7 @@ Welcome to libcoraza, the C library for OWASP Coraza Web Application Firewall. B
 * a C compiler:
   * gcc or
   * clang
-* Golang compiler v1.16+
+* Golang compiler v1.18+
 * libtools
 * autotools
 * make
@@ -52,7 +52,7 @@ it as vendor:
 go get -u github.com/corazawaf/coraza/v2@HASH-ID
 go mod vendor
 go mod tidy
-autoreconf --install
+./build.sh
 ./configure
 make
 ```
