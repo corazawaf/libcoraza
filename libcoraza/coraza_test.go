@@ -21,9 +21,6 @@ func TestWafIsConsistent(t *testing.T) {
 	}
 }
 
-func TestAddRulesToWaf(t *testing.T) {
-}
-
 func TestTransactionInitialization(t *testing.T) {
 	waf := coraza_new_waf()
 	tt := coraza_new_transaction(waf, nil)
@@ -46,7 +43,7 @@ func TestTxCleaning(t *testing.T) {
 func TestMyCtostring(t *testing.T) {
 	testStr := "testtest"
 	testStrC := stringToC(testStr)
-	testStrGo := MyCtostring(testStrC)
+	testStrGo := cStringToGoString(testStrC)
 	if cmp := strings.Compare(testStr, testStrGo); cmp != 0 {
 		t.Fatal("There was a failure in converting C string to Go string using MyCtostring.")
 	}
@@ -56,7 +53,7 @@ func TestMyCtostringN(t *testing.T) {
 	testStr := "testtest"
 	testStrC := stringToC(testStr)
 	testStrLen := intToCint(len(testStr))
-	testStrGo := MyCtostringN(testStrC, testStrLen)
+	testStrGo := cStringToGoStringN(testStrC, testStrLen)
 	if cmp := strings.Compare(testStr, testStrGo); cmp != 0 {
 		t.Fatal("There was a failure in converting C string to Go string using MyCtostringN.")
 	}
