@@ -21,7 +21,54 @@ func TestWafIsConsistent(t *testing.T) {
 	}
 }
 
+func TestAddFileToWaf(t *testing.T) {
+	er := stringToC("a")
+	waf := coraza_new_waf()
+	coraza_rules_add_file(waf, stringToC(`default.conf`), &er)
+	tt := coraza_new_transaction(waf, nil)
+	if tt == 0 {
+		t.Fatal("Transaction initialization failed")
+	}
+	tx := ptrToTransaction(tt)
+	tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
+	tx.ProcessURI("https://www.example.com/some?params=123", "GET", "HTTP/1.1")
+	tx.AddRequestHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.44")
+	tx.ProcessRequestHeaders()
+	tx.ProcessRequestBody()
+	tx.AddResponseHeader("Content-Type", "text/html")
+	tx.ProcessResponseHeaders(200, "OK")
+	tx.ProcessResponseBody()
+	tx.ProcessLogging()
+	intervention := tx.Interruption()
+	tx.Close()
+	if intervention.Action != "drop" {
+		t.Fatal("action was not correct")
+	}
+}
+
 func TestAddRulesToWaf(t *testing.T) {
+	er := stringToC("a")
+	waf := coraza_new_waf()
+	coraza_rules_add(waf, stringToC(`SecRule REQUEST_HEADERS:User-Agent "Mozilla" "phase:1, id:3,drop,status:403,log,msg:'Blocked User-Agent'"`), &er)
+	tt := coraza_new_transaction(waf, nil)
+	if tt == 0 {
+		t.Fatal("Transaction initialization failed")
+	}
+	tx := ptrToTransaction(tt)
+	tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
+	tx.ProcessURI("https://www.example.com/some?params=123", "GET", "HTTP/1.1")
+	tx.AddRequestHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.44")
+	tx.ProcessRequestHeaders()
+	tx.ProcessRequestBody()
+	tx.AddResponseHeader("Content-Type", "text/html")
+	tx.ProcessResponseHeaders(200, "OK")
+	tx.ProcessResponseBody()
+	tx.ProcessLogging()
+	intervention := tx.Interruption()
+	tx.Close()
+	if intervention.Action != "drop" {
+		t.Fatal("action was not correct")
+	}
 }
 
 func TestTransactionInitialization(t *testing.T) {
