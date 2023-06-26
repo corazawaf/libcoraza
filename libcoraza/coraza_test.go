@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/corazawaf/coraza/v3"
@@ -39,6 +40,25 @@ func TestTxCleaning(t *testing.T) {
 	coraza_free_transaction(txPtr)
 	if _, ok := txMap[uint64(txPtr)]; ok {
 		t.Fatal("Transaction was not removed from the map")
+	}
+}
+
+func TestMyCtostring(t *testing.T) {
+	testStr := "testtest"
+	testStrC := stringToC(testStr)
+	testStrGo := MyCtostring(testStrC)
+	if cmp := strings.Compare(testStr, testStrGo); cmp != 0 {
+		t.Fatal("There was a failure in converting C string to Go string using MyCtostring.")
+	}
+}
+
+func TestMyCtostringN(t *testing.T) {
+	testStr := "testtest"
+	testStrC := stringToC(testStr)
+	testStrLen := intToCint(len(testStr))
+	testStrGo := MyCtostringN(testStrC, testStrLen)
+	if cmp := strings.Compare(testStr, testStrGo); cmp != 0 {
+		t.Fatal("There was a failure in converting C string to Go string using MyCtostringN.")
 	}
 }
 
