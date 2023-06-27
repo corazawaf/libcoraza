@@ -6,7 +6,6 @@ package main
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <string.h>
 
 typedef struct coraza_intervention_t
 {
@@ -29,7 +28,6 @@ import "C"
 import (
 	"io"
 	"os"
-	"reflect"
 	"unsafe"
 
 	"github.com/corazawaf/coraza/v3"
@@ -70,7 +68,7 @@ func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_t
 //export coraza_new_transaction_with_id
 func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char, logCb unsafe.Pointer) C.coraza_transaction_t {
 	w := ptrToWaf(waf)
-	tx := w.NewTransactionWithID(cStringToGoString(id))
+	tx := w.NewTransactionWithID(C.GoString(id))
 	ptr := transactionToPtr(tx)
 	txMap[ptr] = tx
 	return C.coraza_transaction_t(ptr)
@@ -91,9 +89,9 @@ func coraza_intervention(tx C.coraza_transaction_t) *C.coraza_intervention_t {
 //export coraza_process_connection
 func coraza_process_connection(t C.coraza_transaction_t, sourceAddress *C.char, clientPort C.int, serverHost *C.char, serverPort C.int) C.int {
 	tx := ptrToTransaction(t)
-	srcAddr := cStringToGoString(sourceAddress)
+	srcAddr := C.GoString(sourceAddress)
 	cp := int(clientPort)
-	ch := cStringToGoString(serverHost)
+	ch := C.GoString(serverHost)
 	sp := int(serverPort)
 	tx.ProcessConnection(srcAddr, cp, ch, sp)
 	return 0
@@ -122,14 +120,14 @@ func coraza_update_status_code(t C.coraza_transaction_t, code C.int) C.int {
 func coraza_process_uri(t C.coraza_transaction_t, uri *C.char, method *C.char, proto *C.char) C.int {
 	tx := ptrToTransaction(t)
 
-	tx.ProcessURI(cStringToGoString(uri), cStringToGoString(method), cStringToGoString(proto))
+	tx.ProcessURI(C.GoString(uri), C.GoString(method), C.GoString(proto))
 	return 0
 }
 
 //export coraza_add_request_header
 func coraza_add_request_header(t C.coraza_transaction_t, name *C.char, name_len C.int, value *C.char, value_len C.int) C.int {
 	tx := ptrToTransaction(t)
-	tx.AddRequestHeader(cStringToGoStringN(name, name_len), cStringToGoStringN(value, value_len))
+	tx.AddRequestHeader(C.GoStringN(name, name_len), C.GoStringN(value, value_len))
 	return 0
 }
 
@@ -159,7 +157,7 @@ func coraza_append_request_body(t C.coraza_transaction_t, data *C.uchar, length 
 //export coraza_add_response_header
 func coraza_add_response_header(t C.coraza_transaction_t, name *C.char, name_len C.int, value *C.char, value_len C.int) C.int {
 	tx := ptrToTransaction(t)
-	tx.AddResponseHeader(cStringToGoStringN(name, name_len), cStringToGoStringN(value, value_len))
+	tx.AddResponseHeader(C.GoStringN(name, name_len), C.GoStringN(value, value_len))
 	return 0
 }
 
@@ -184,13 +182,13 @@ func coraza_process_response_body(t C.coraza_transaction_t) C.int {
 //export coraza_process_response_headers
 func coraza_process_response_headers(t C.coraza_transaction_t, status C.int, proto *C.char) C.int {
 	tx := ptrToTransaction(t)
-	tx.ProcessResponseHeaders(int(status), cStringToGoString(proto))
+	tx.ProcessResponseHeaders(int(status), C.GoString(proto))
 	return 0
 }
 
 //export coraza_rules_add_file
 func coraza_rules_add_file(w C.coraza_waf_t, file *C.char, er **C.char) C.int {
-	conf := coraza.NewWAFConfig().WithDirectivesFromFile(cStringToGoString(file))
+	conf := coraza.NewWAFConfig().WithDirectivesFromFile(C.GoString(file))
 	waf, err := coraza.NewWAF(conf)
 	if err != nil {
 		*er = C.CString(err.Error())
@@ -203,7 +201,7 @@ func coraza_rules_add_file(w C.coraza_waf_t, file *C.char, er **C.char) C.int {
 
 //export coraza_rules_add
 func coraza_rules_add(w C.coraza_waf_t, directives *C.char, er **C.char) C.int {
-	conf := coraza.NewWAFConfig().WithDirectives(cStringToGoString(directives))
+	conf := coraza.NewWAFConfig().WithDirectives(C.GoString(directives))
 	waf, err := coraza.NewWAF(conf)
 	if err != nil {
 		*er = C.CString(err.Error())
@@ -249,7 +247,7 @@ func coraza_rules_merge(w1 C.coraza_waf_t, w2 C.coraza_waf_t, er **C.char) C.int
 //export coraza_request_body_from_file
 func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int {
 	tx := ptrToTransaction(t)
-	f, err := os.Open(cStringToGoString(file))
+	f, err := os.Open(C.GoString(file))
 	if err != nil {
 		return 1
 	}
@@ -307,31 +305,6 @@ func wafToPtr(waf coraza.WAF) uint64 {
 // It should just be C.CString(s) but we need this to build tests
 func stringToC(s string) *C.char {
 	return C.CString(s)
-}
-
-func intToCint(i int) C.int {
-	return C.int(i)
-}
-
-// cStringToGoString converts C string to Go string without copying data to enhance performance.
-func cStringToGoString(cStr *C.char) string {
-
-	myStr := new(reflect.StringHeader)
-	// size_t strnlen(const char *s, size_t max_len);
-	cStrLen := C.strnlen(cStr, 65535) // invoke strnlen to obtain the len of cStr
-
-	myStr.Data = (uintptr)(unsafe.Pointer(cStr)) // the pointer of c char*
-	myStr.Len = int(cStrLen)                     // the length of c char *
-	gostr := *(*string)(unsafe.Pointer(myStr))
-	return gostr
-}
-
-func cStringToGoStringN(cStr *C.char, cLen C.int) string {
-	myStr := new(reflect.StringHeader)
-	myStr.Data = (uintptr)(unsafe.Pointer(cStr)) // the pointer of c char*
-	myStr.Len = int(cLen)                        // the length of c char *
-	gostr := *(*string)(unsafe.Pointer(myStr))
-	return gostr
 }
 
 func main() {}
