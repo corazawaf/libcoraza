@@ -28,6 +28,7 @@ import "C"
 import (
 	"io"
 	"os"
+	"reflect"
 	"unsafe"
 
 	"github.com/corazawaf/coraza/v3"
@@ -186,29 +187,44 @@ func coraza_process_response_headers(t C.coraza_transaction_t, status C.int, pro
 	return 0
 }
 
+type Parser struct{}
+
+//go:linkname NewParser github.com/corazawaf/coraza/v3/internal/seclang.NewParser
+func NewParser(waf *coraza.WAF) *Parser
+
+//go:linkname FromFile github.com/corazawaf/coraza/v3/internal/seclang.(*Parser).FromFile
+func FromFile(p *Parser, profilePath string) error
+
+//go:linkname FromString github.com/corazawaf/coraza/v3/internal/seclang.(*Parser).FromString
+func FromString(p *Parser, data string) error
+
 //export coraza_rules_add_file
 func coraza_rules_add_file(w C.coraza_waf_t, file *C.char, er **C.char) C.int {
-	conf := coraza.NewWAFConfig().WithDirectivesFromFile(C.GoString(file))
-	waf, err := coraza.NewWAF(conf)
+	waf := ptrToWaf(w)
+	value := reflect.ValueOf(waf)
+	innerWaf := (*coraza.WAF)(value.FieldByName("waf").UnsafePointer())
+	parser := NewParser(innerWaf)
+	err := FromFile(parser, C.GoString(file))
 	if err != nil {
 		*er = C.CString(err.Error())
 		// we share the pointer, so we shouldn't free it, right?
 		return 0
 	}
-	wafMap[uint64(w)] = waf
 	return 1
 }
 
 //export coraza_rules_add
 func coraza_rules_add(w C.coraza_waf_t, directives *C.char, er **C.char) C.int {
-	conf := coraza.NewWAFConfig().WithDirectives(C.GoString(directives))
-	waf, err := coraza.NewWAF(conf)
+	waf := ptrToWaf(w)
+	value := reflect.ValueOf(waf)
+	innerWaf := (*coraza.WAF)(value.FieldByName("waf").UnsafePointer())
+	parser := NewParser(innerWaf)
+	err := FromString(parser, C.GoString(directives))
 	if err != nil {
 		*er = C.CString(err.Error())
 		// we share the pointer, so we shouldn't free it, right?
 		return 0
 	}
-	wafMap[uint64(w)] = waf
 	return 1
 }
 
