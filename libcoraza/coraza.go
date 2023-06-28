@@ -299,7 +299,7 @@ func transactionToPtr(tx types.Transaction) uint64 {
 
 func wafToPtr(waf coraza.WAF) uint64 {
 	u := (*uint64)(unsafe.Pointer(&waf))
-	return *u
+	return *(*uint64)(unsafe.Pointer(&u))
 }
 
 // It should just be C.CString(s) but we need this to build tests
