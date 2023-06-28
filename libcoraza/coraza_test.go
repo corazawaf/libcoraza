@@ -29,6 +29,10 @@ func TestTransactionInitialization(t *testing.T) {
 	if tt == 0 {
 		t.Fatal("Transaction initialization failed")
 	}
+	t2 := coraza_new_transaction(waf, nil)
+	if t2 == tt {
+		t.Fatal("Transactions are duplicated")
+	}
 	tx := ptrToTransaction(tt)
 	tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
 }

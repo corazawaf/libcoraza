@@ -294,7 +294,7 @@ func ptrToTransaction(t C.coraza_transaction_t) types.Transaction {
 
 func transactionToPtr(tx types.Transaction) uint64 {
 	u := (*uint64)(unsafe.Pointer(&tx))
-	return *u
+	return *(*uint64)(unsafe.Pointer(&u))
 }
 
 func wafToPtr(waf coraza.WAF) uint64 {
