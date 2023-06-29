@@ -28,6 +28,7 @@ import "C"
 import (
 	"io"
 	"os"
+	"reflect"
 	"unsafe"
 
 	"github.com/corazawaf/coraza/v3"
@@ -293,13 +294,11 @@ func ptrToTransaction(t C.coraza_transaction_t) types.Transaction {
 }
 
 func transactionToPtr(tx types.Transaction) uint64 {
-	u := (*uint64)(unsafe.Pointer(&tx))
-	return *(*uint64)(unsafe.Pointer(&u))
+	return uint64(reflect.ValueOf(&tx).Pointer())
 }
 
 func wafToPtr(waf coraza.WAF) uint64 {
-	u := (*uint64)(unsafe.Pointer(&waf))
-	return *(*uint64)(unsafe.Pointer(&u))
+	return uint64(reflect.ValueOf(&waf).Pointer())
 }
 
 // It should just be C.CString(s) but we need this to build tests
