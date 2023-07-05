@@ -10,8 +10,6 @@ package main
 typedef struct coraza_intervention_t
 {
 	char *action;
-	char *log;
-    char *url;
     int status;
     int pause;
     int disruptive;
@@ -234,8 +232,6 @@ func coraza_free_intervention(it *C.coraza_intervention_t) C.int {
 		return 1
 	}
 	defer C.free(unsafe.Pointer(it))
-	C.free(unsafe.Pointer(it.log))
-	C.free(unsafe.Pointer(it.url))
 	C.free(unsafe.Pointer(it.action))
 	return 0
 }
