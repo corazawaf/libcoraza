@@ -10,8 +10,6 @@ package main
 typedef struct coraza_intervention_t
 {
 	char *action;
-	char *log;
-    char *url;
     int status;
     int pause;
     int disruptive;
