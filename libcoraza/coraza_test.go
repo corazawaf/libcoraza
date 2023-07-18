@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/corazawaf/coraza/v3"
+	"github.com/corazawaf/coraza/v3/experimental/plugins/plugintypes"
 )
 
 var waf *coraza.WAF
@@ -21,6 +22,29 @@ func TestWafIsConsistent(t *testing.T) {
 }
 
 func TestAddRulesToWaf(t *testing.T) {
+}
+
+func TestCoraza_add_get_args(t *testing.T) {
+	waf := coraza_new_waf()
+	tt := coraza_new_transaction(waf, nil)
+	coraza_add_get_args(tt, stringToC("aa"), stringToC("bb"))
+	tx := ptrToTransaction(tt)
+	txi := tx.(plugintypes.TransactionState)
+	argsGet := txi.Variables().ArgsGet()
+	value := argsGet.Get("aa")
+	if len(value) != 1 && value[0] != "bb" {
+		t.Fatal("coraza_add_get_args can't add args")
+	}
+	coraza_add_get_args(tt, stringToC("dd"), stringToC("ee"))
+	value = argsGet.Get("dd")
+	if len(value) != 1 && value[0] != "ee" {
+		t.Fatal("coraza_add_get_args can't add args with another key")
+	}
+	coraza_add_get_args(tt, stringToC("aa"), stringToC("cc"))
+	value = argsGet.Get("aa")
+	if len(value) != 2 && value[0] != "bb" && value[1] != "cc" {
+		t.Fatal("coraza_add_get_args can't add args with same key more than once")
+	}
 }
 
 func TestTransactionInitialization(t *testing.T) {
