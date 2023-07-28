@@ -153,6 +153,13 @@ func coraza_append_request_body(t C.coraza_transaction_t, data *C.uchar, length 
 	return 0
 }
 
+//export coraza_add_get_args
+func coraza_add_get_args(t C.coraza_transaction_t, name *C.char, value *C.char) C.int {
+	tx := ptrToTransaction(t)
+	tx.AddGetRequestArgument(C.GoString(name), C.GoString(value))
+	return 0
+}
+
 //export coraza_add_response_header
 func coraza_add_response_header(t C.coraza_transaction_t, name *C.char, name_len C.int, value *C.char, value_len C.int) C.int {
 	tx := ptrToTransaction(t)
