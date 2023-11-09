@@ -17,7 +17,7 @@ int main()
     char ** uri = NULL;
 
     printf("Starting...\n");
-    waf = coraza_new_waf(NULL);
+    waf = coraza_new_waf();
     if (waf == 0) {
         printf("Failed to create waf\n");
         return 1;
