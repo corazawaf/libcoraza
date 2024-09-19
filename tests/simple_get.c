@@ -2,7 +2,7 @@
 
 #include "coraza/coraza.h"
 
-void logcb(void *log, const void *data)
+void logcb(const void *data)
 {
     printf("%s\n", (const char *)data);
 }
