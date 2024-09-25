@@ -1,6 +1,6 @@
 # C library for OWASP Coraza Web Application Firewall v2
 
-Welcome to libcoraza, the C library for OWASP Coraza Web Application Firewall. Because [Coraza](https://github.com/corazawaf/coraza) has made in golang, if you want to embed in any kind of C application, you will need this library.
+Welcome to libcoraza, the C library for OWASP Coraza Web Application Firewall. Because [Coraza](https://github.com/corazawaf/coraza) was made in golang, if you want to embed in any kind of C application, you will need this library.
 
 ## Prerequisites
 
