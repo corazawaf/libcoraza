@@ -20,6 +20,10 @@ jobs:
       with:
         lfs: true
         fetch-depth: 0 #for better blame info
+    - name: Install macOS dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew install autoconf automake libtool
     - name: Setup
       run: |
         ./build.sh
