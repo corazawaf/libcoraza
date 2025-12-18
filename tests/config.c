@@ -9,31 +9,37 @@ void logcb(const void *data)
 
 int main()
 {
+    coraza_waf_config_t config = 0;
     coraza_waf_t waf = 0;
     coraza_transaction_t tx = 0;
     coraza_intervention_t *intervention = NULL;
     char *err = NULL;
     char **uri = NULL;
 
-    printf("Starting...\n");
-    waf = coraza_new_waf();
-    if (waf == 0)
+    printf("Creating config...\n");
+    config = coraza_new_waf_config();
+    if (config == 0)
     {
-        printf("Failed to create waf\n");
+        printf("Failed to create config\n");
         return 1;
     }
-    printf("Attaching log callback\n");
-    coraza_set_log_cb(waf, logcb);
 
-    printf("Compiling rules...\n");
-    coraza_rules_add(waf, "SecRule REMOTE_ADDR \"127.0.0.1\" \"id:1,phase:1,deny,log,msg:'test 123',status:403\"", &err);
+    printf("Adding rules to config...\n");
+    coraza_add_rules_to_waf_config(config, "SecRule REMOTE_ADDR \"127.0.0.1\" \"id:1,phase:1,deny,log,msg:'test 123',status:403\"");
     if (err)
     {
         printf("%s\n", err);
         return 1;
     }
 
-    printf("%d rules compiled\n", coraza_rules_count(waf));
+    printf("Starting...\n");
+    waf = coraza_new_waf_with_config(config);
+    if (waf == 0)
+    {
+        printf("Failed to create waf\n");
+        return 1;
+    }
+
     printf("Creating transaction...\n");
     tx = coraza_new_transaction(waf, NULL);
     if (tx == 0)
@@ -48,14 +54,6 @@ int main()
     coraza_process_uri(tx, "/someurl", "GET", "HTTP/1.1");
     printf("Processing phase 1\n");
     coraza_process_request_headers(tx);
-    printf("Processing phase 2\n");
-    coraza_process_request_body(tx);
-    printf("Processing phase 3\n");
-    coraza_process_response_headers(tx, 200, "HTTP/1.1");
-    printf("Processing phase 4\n");
-    coraza_process_response_body(tx);
-    printf("Processing phase 5\n");
-    coraza_process_logging(tx);
     printf("Processing intervention\n");
 
     intervention = coraza_intervention(tx);
@@ -73,5 +71,6 @@ int main()
     }
     coraza_free_waf(waf);
     coraza_free_intervention(intervention);
+    coraza_free_waf_config(config);
     return 0;
 }

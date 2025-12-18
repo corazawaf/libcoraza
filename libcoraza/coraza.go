@@ -15,6 +15,7 @@ typedef struct coraza_intervention_t
     int disruptive;
 } coraza_intervention_t;
 
+typedef uint64_t coraza_waf_config_t;
 typedef uint64_t coraza_waf_t;
 typedef uint64_t coraza_transaction_t;
 
@@ -34,8 +35,48 @@ import (
 	"github.com/corazawaf/coraza/v3/types"
 )
 
-var wafMap = make(map[uint64]coraza.WAF)
+var configMap = make(map[uint64]*WafConfigHandle)
+var wafMap = make(map[uint64]*WafHandle)
 var txMap = make(map[uint64]types.Transaction)
+
+type WafConfigHandle struct {
+	config coraza.WAFConfig
+}
+
+type WafHandle struct {
+	waf    coraza.WAF
+	config coraza.WAFConfig
+}
+
+//export coraza_new_waf_config
+func coraza_new_waf_config() C.coraza_waf_config_t {
+	config := coraza.NewWAFConfig()
+	handle := &WafConfigHandle{
+		config: config,
+	}
+	ptr := wafConfigHandleToPtr(handle)
+	configMap[ptr] = handle
+	return C.coraza_waf_config_t(ptr)
+}
+
+//export coraza_add_rules_to_waf_config
+func coraza_add_rules_to_waf_config(c C.coraza_waf_config_t, rules *C.char) C.int {
+	handle := ptrToWafConfigHandle(c)
+	handle.config = handle.config.WithDirectives(C.GoString(rules))
+	return 0
+}
+
+//export coraza_add_rules_from_file_to_waf_config
+func coraza_add_rules_from_file_to_waf_config(c C.coraza_waf_config_t, file *C.char) C.int {
+	handle := ptrToWafConfigHandle(c)
+	handle.config = handle.config.WithDirectivesFromFile(C.GoString(file))
+	return 0
+}
+
+//export coraza_free_waf_config
+func coraza_free_waf_config(c C.coraza_waf_config_t) {
+	delete(configMap, uint64(c))
+}
 
 /**
  * Creates a new  WAF instance
@@ -43,9 +84,33 @@ var txMap = make(map[uint64]types.Transaction)
  */
 //export coraza_new_waf
 func coraza_new_waf() C.coraza_waf_t {
-	waf, _ := coraza.NewWAF(coraza.NewWAFConfig())
-	ptr := wafToPtr(waf)
-	wafMap[ptr] = waf
+	config := coraza.NewWAFConfig()
+	waf, err := coraza.NewWAF(config)
+	if err != nil {
+		return 0
+	}
+	handle := &WafHandle{
+		waf:    waf,
+		config: config,
+	}
+	ptr := wafToPtr(handle)
+	wafMap[ptr] = handle
+	return C.coraza_waf_t(ptr)
+}
+
+//export coraza_new_waf_with_config
+func coraza_new_waf_with_config(c C.coraza_waf_config_t) C.coraza_waf_t {
+	wafConfigHandle := ptrToWafConfigHandle(c)
+	waf, err := coraza.NewWAF(wafConfigHandle.config)
+	if err != nil {
+		return 0
+	}
+	handle := &WafHandle{
+		waf:    waf,
+		config: wafConfigHandle.config,
+	}
+	ptr := wafToPtr(handle)
+	wafMap[ptr] = handle
 	return C.coraza_waf_t(ptr)
 }
 
@@ -57,8 +122,8 @@ func coraza_new_waf() C.coraza_waf_t {
  */
 //export coraza_new_transaction
 func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_transaction_t {
-	w := ptrToWaf(waf)
-	tx := w.NewTransaction()
+	handle := ptrToWafHandle(waf)
+	tx := handle.waf.NewTransaction()
 	ptr := transactionToPtr(tx)
 	txMap[ptr] = tx
 	return C.coraza_transaction_t(ptr)
@@ -66,8 +131,8 @@ func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_t
 
 //export coraza_new_transaction_with_id
 func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char, logCb unsafe.Pointer) C.coraza_transaction_t {
-	w := ptrToWaf(waf)
-	tx := w.NewTransactionWithID(C.GoString(id))
+	handle := ptrToWafHandle(waf)
+	tx := handle.waf.NewTransactionWithID(C.GoString(id))
 	ptr := transactionToPtr(tx)
 	txMap[ptr] = tx
 	return C.coraza_transaction_t(ptr)
@@ -194,27 +259,31 @@ func coraza_process_response_headers(t C.coraza_transaction_t, status C.int, pro
 
 //export coraza_rules_add_file
 func coraza_rules_add_file(w C.coraza_waf_t, file *C.char, er **C.char) C.int {
-	conf := coraza.NewWAFConfig().WithDirectivesFromFile(C.GoString(file))
-	waf, err := coraza.NewWAF(conf)
+	handle := ptrToWafHandle(w)
+	handle.config = handle.config.WithDirectivesFromFile(C.GoString(file))
+	var err error
+	handle.waf, err = coraza.NewWAF(handle.config)
 	if err != nil {
 		*er = C.CString(err.Error())
 		// we share the pointer, so we shouldn't free it, right?
 		return 0
 	}
-	wafMap[uint64(w)] = waf
+	wafMap[uint64(w)] = handle
 	return 1
 }
 
 //export coraza_rules_add
 func coraza_rules_add(w C.coraza_waf_t, directives *C.char, er **C.char) C.int {
-	conf := coraza.NewWAFConfig().WithDirectives(C.GoString(directives))
-	waf, err := coraza.NewWAF(conf)
+	handle := ptrToWafHandle(w)
+	handle.config = handle.config.WithDirectives(C.GoString(directives))
+	var err error
+	handle.waf, err = coraza.NewWAF(handle.config)
 	if err != nil {
 		*er = C.CString(err.Error())
 		// we share the pointer, so we shouldn't free it, right?
 		return 0
 	}
-	wafMap[uint64(w)] = waf
+	wafMap[uint64(w)] = handle
 	return 1
 }
 
@@ -288,7 +357,11 @@ func coraza_set_log_cb(waf C.coraza_waf_t, cb C.coraza_log_cb) {
 Internal helpers
 */
 
-func ptrToWaf(waf C.coraza_waf_t) coraza.WAF {
+func ptrToWafConfigHandle(config C.coraza_waf_config_t) *WafConfigHandle {
+	return configMap[uint64(config)]
+}
+
+func ptrToWafHandle(waf C.coraza_waf_t) *WafHandle {
 	return wafMap[uint64(waf)]
 }
 
@@ -300,8 +373,12 @@ func transactionToPtr(tx types.Transaction) uint64 {
 	return uint64(reflect.ValueOf(&tx).Pointer())
 }
 
-func wafToPtr(waf coraza.WAF) uint64 {
+func wafToPtr(waf *WafHandle) uint64 {
 	return uint64(reflect.ValueOf(&waf).Pointer())
+}
+
+func wafConfigHandleToPtr(config *WafConfigHandle) uint64 {
+	return uint64(reflect.ValueOf(&config).Pointer())
 }
 
 // It should just be C.CString(s) but we need this to build tests
