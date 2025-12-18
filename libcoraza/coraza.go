@@ -258,14 +258,13 @@ func coraza_process_response_headers(t C.coraza_transaction_t, status C.int, pro
 func coraza_rules_add_file(w C.coraza_waf_t, file *C.char, er **C.char) C.int {
 	handle := ptrToWafHandle(w)
 	config := coraza.NewWAFConfig().WithDirectivesFromFile(C.GoString(file))
-	var err error
-	handle.waf, err = coraza.NewWAF(config)
+	waf, err := coraza.NewWAF(config)
 	if err != nil {
 		*er = C.CString(err.Error())
 		// we share the pointer, so we shouldn't free it, right?
 		return 0
 	}
-	wafMap[uint64(w)] = handle
+	handle.waf = waf
 	return 1
 }
 
@@ -273,14 +272,13 @@ func coraza_rules_add_file(w C.coraza_waf_t, file *C.char, er **C.char) C.int {
 func coraza_rules_add(w C.coraza_waf_t, directives *C.char, er **C.char) C.int {
 	handle := ptrToWafHandle(w)
 	config := coraza.NewWAFConfig().WithDirectives(C.GoString(directives))
-	var err error
-	handle.waf, err = coraza.NewWAF(config)
+	waf, err := coraza.NewWAF(config)
 	if err != nil {
 		*er = C.CString(err.Error())
 		// we share the pointer, so we shouldn't free it, right?
 		return 0
 	}
-	wafMap[uint64(w)] = handle
+	handle.waf = waf
 	return 1
 }
 
