@@ -27,6 +27,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"sync"
 	"unsafe"
 
 	"github.com/corazawaf/coraza/v3"
@@ -34,8 +35,8 @@ import (
 	"github.com/corazawaf/coraza/v3/types"
 )
 
-var wafMap = make(map[uint64]coraza.WAF)
-var txMap = make(map[uint64]types.Transaction)
+var wafMap = sync.Map{}
+var txMap = sync.Map{}
 
 /**
  * Creates a new  WAF instance
@@ -45,7 +46,7 @@ var txMap = make(map[uint64]types.Transaction)
 func coraza_new_waf() C.coraza_waf_t {
 	waf, _ := coraza.NewWAF(coraza.NewWAFConfig())
 	ptr := wafToPtr(waf)
-	wafMap[ptr] = waf
+	wafMap.Store(ptr, waf)
 	return C.coraza_waf_t(ptr)
 }
 
@@ -60,7 +61,7 @@ func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_t
 	w := ptrToWaf(waf)
 	tx := w.NewTransaction()
 	ptr := transactionToPtr(tx)
-	txMap[ptr] = tx
+	txMap.Store(ptr, tx)
 	return C.coraza_transaction_t(ptr)
 }
 
@@ -69,7 +70,7 @@ func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char, logCb unsafe
 	w := ptrToWaf(waf)
 	tx := w.NewTransactionWithID(C.GoString(id))
 	ptr := transactionToPtr(tx)
-	txMap[ptr] = tx
+	txMap.Store(ptr, tx)
 	return C.coraza_transaction_t(ptr)
 }
 
@@ -201,7 +202,7 @@ func coraza_rules_add_file(w C.coraza_waf_t, file *C.char, er **C.char) C.int {
 		// we share the pointer, so we shouldn't free it, right?
 		return 0
 	}
-	wafMap[uint64(w)] = waf
+	wafMap.Store(uint64(w), waf)
 	return 1
 }
 
@@ -214,7 +215,7 @@ func coraza_rules_add(w C.coraza_waf_t, directives *C.char, er **C.char) C.int {
 		// we share the pointer, so we shouldn't free it, right?
 		return 0
 	}
-	wafMap[uint64(w)] = waf
+	wafMap.Store(uint64(w), waf)
 	return 1
 }
 
@@ -229,7 +230,7 @@ func coraza_free_transaction(t C.coraza_transaction_t) C.int {
 	if tx.Close() != nil {
 		return 1
 	}
-	delete(txMap, uint64(t))
+	txMap.Delete(uint64(t))
 	return 0
 }
 
@@ -276,7 +277,7 @@ func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int
 //export coraza_free_waf
 func coraza_free_waf(t C.coraza_waf_t) C.int {
 	// waf := ptrToWaf(t)
-	delete(wafMap, uint64(t))
+	wafMap.Delete(uint64(t))
 	return 0
 }
 
@@ -288,12 +289,20 @@ func coraza_set_log_cb(waf C.coraza_waf_t, cb C.coraza_log_cb) {
 Internal helpers
 */
 
-func ptrToWaf(waf C.coraza_waf_t) coraza.WAF {
-	return wafMap[uint64(waf)]
+func ptrToWaf(w C.coraza_waf_t) coraza.WAF {
+	waf, ok := wafMap.Load(uint64(w))
+	if !ok {
+		panic("waf not found")
+	}
+	return waf.(coraza.WAF)
 }
 
 func ptrToTransaction(t C.coraza_transaction_t) types.Transaction {
-	return txMap[uint64(t)]
+	tx, ok := txMap.Load(uint64(t))
+	if !ok {
+		panic("transaction not found")
+	}
+	return tx.(types.Transaction)
 }
 
 func transactionToPtr(tx types.Transaction) uint64 {

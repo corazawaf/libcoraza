@@ -65,7 +65,7 @@ func TestTxCleaning(t *testing.T) {
 	waf := coraza_new_waf()
 	txPtr := coraza_new_transaction(waf, nil)
 	coraza_free_transaction(txPtr)
-	if _, ok := txMap[uint64(txPtr)]; ok {
+	if _, ok := txMap.Load(uint64(txPtr)); ok {
 		t.Fatal("Transaction was not removed from the map")
 	}
 }
