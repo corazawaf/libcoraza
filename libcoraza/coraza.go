@@ -44,8 +44,7 @@ type WafConfigHandle struct {
 }
 
 type WafHandle struct {
-	waf    coraza.WAF
-	config coraza.WAFConfig
+	waf coraza.WAF
 }
 
 //export coraza_new_waf_config
@@ -90,8 +89,7 @@ func coraza_new_waf() C.coraza_waf_t {
 		return 0
 	}
 	handle := &WafHandle{
-		waf:    waf,
-		config: config,
+		waf: waf,
 	}
 	ptr := wafToPtr(handle)
 	wafMap[ptr] = handle
@@ -106,8 +104,7 @@ func coraza_new_waf_with_config(c C.coraza_waf_config_t) C.coraza_waf_t {
 		return 0
 	}
 	handle := &WafHandle{
-		waf:    waf,
-		config: wafConfigHandle.config,
+		waf: waf,
 	}
 	ptr := wafToPtr(handle)
 	wafMap[ptr] = handle
@@ -260,9 +257,9 @@ func coraza_process_response_headers(t C.coraza_transaction_t, status C.int, pro
 //export coraza_rules_add_file
 func coraza_rules_add_file(w C.coraza_waf_t, file *C.char, er **C.char) C.int {
 	handle := ptrToWafHandle(w)
-	handle.config = handle.config.WithDirectivesFromFile(C.GoString(file))
+	config := coraza.NewWAFConfig().WithDirectivesFromFile(C.GoString(file))
 	var err error
-	handle.waf, err = coraza.NewWAF(handle.config)
+	handle.waf, err = coraza.NewWAF(config)
 	if err != nil {
 		*er = C.CString(err.Error())
 		// we share the pointer, so we shouldn't free it, right?
@@ -275,9 +272,9 @@ func coraza_rules_add_file(w C.coraza_waf_t, file *C.char, er **C.char) C.int {
 //export coraza_rules_add
 func coraza_rules_add(w C.coraza_waf_t, directives *C.char, er **C.char) C.int {
 	handle := ptrToWafHandle(w)
-	handle.config = handle.config.WithDirectives(C.GoString(directives))
+	config := coraza.NewWAFConfig().WithDirectives(C.GoString(directives))
 	var err error
-	handle.waf, err = coraza.NewWAF(handle.config)
+	handle.waf, err = coraza.NewWAF(config)
 	if err != nil {
 		*er = C.CString(err.Error())
 		// we share the pointer, so we shouldn't free it, right?
