@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime/cgo"
 	"testing"
 
 	"github.com/corazawaf/coraza/v3"
@@ -28,8 +29,8 @@ func TestCoraza_add_get_args(t *testing.T) {
 	waf := coraza_new_waf()
 	tt := coraza_new_transaction(waf, nil)
 	coraza_add_get_args(tt, stringToC("aa"), stringToC("bb"))
-	tx := ptrToTransaction(tt)
-	txi := tx.(plugintypes.TransactionState)
+	tx := cgo.Handle(tt).Value().(*TransactionHandle)
+	txi := tx.transaction.(plugintypes.TransactionState)
 	argsGet := txi.Variables().ArgsGet()
 	value := argsGet.Get("aa")
 	if len(value) != 1 && value[0] != "bb" {
@@ -57,17 +58,8 @@ func TestTransactionInitialization(t *testing.T) {
 	if t2 == tt {
 		t.Fatal("Transactions are duplicated")
 	}
-	tx := ptrToTransaction(tt)
-	tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
-}
-
-func TestTxCleaning(t *testing.T) {
-	waf := coraza_new_waf()
-	txPtr := coraza_new_transaction(waf, nil)
-	coraza_free_transaction(txPtr)
-	if _, ok := txMap[uint64(txPtr)]; ok {
-		t.Fatal("Transaction was not removed from the map")
-	}
+	tx := cgo.Handle(tt).Value().(*TransactionHandle)
+	tx.transaction.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
 }
 
 func BenchmarkTransactionCreation(b *testing.B) {
@@ -82,16 +74,16 @@ func BenchmarkTransactionProcessing(b *testing.B) {
 	coraza_rules_add(waf, stringToC(`SecRule UNIQUE_ID "" "id:1"`), nil)
 	for i := 0; i < b.N; i++ {
 		txPtr := coraza_new_transaction(waf, nil)
-		tx := ptrToTransaction(txPtr)
-		tx.ProcessConnection("127.0.0.1", 55555, "127.0.0.1", 80)
-		tx.ProcessURI("https://www.example.com/some?params=123", "GET", "HTTP/1.1")
-		tx.AddRequestHeader("Host", "www.example.com")
-		tx.ProcessRequestHeaders()
-		tx.ProcessRequestBody()
-		tx.AddResponseHeader("Content-Type", "text/html")
-		tx.ProcessResponseHeaders(200, "OK")
-		tx.ProcessResponseBody()
-		tx.ProcessLogging()
-		tx.Close()
+		tx := cgo.Handle(txPtr).Value().(*TransactionHandle)
+		tx.transaction.ProcessConnection("127.0.0.1", 55555, "127.0.0.1", 80)
+		tx.transaction.ProcessURI("https://www.example.com/some?params=123", "GET", "HTTP/1.1")
+		tx.transaction.AddRequestHeader("Host", "www.example.com")
+		tx.transaction.ProcessRequestHeaders()
+		tx.transaction.ProcessRequestBody()
+		tx.transaction.AddResponseHeader("Content-Type", "text/html")
+		tx.transaction.ProcessResponseHeaders(200, "OK")
+		tx.transaction.ProcessResponseBody()
+		tx.transaction.ProcessLogging()
+		tx.transaction.Close()
 	}
 }
