@@ -74,6 +74,8 @@ func TestMultipleTransactionsAllocatedDeallocated(t *testing.T) {
 	for i := 0; i < numTransactions; i++ {
 		txes[i] = cgo.Handle(coraza_new_transaction(waf, nil))
 	}
+	// free every other transaction while performing an operation on the other transaction
+	// if there are any collisions between handles, this will result in a seg fault
 	for i := 1; i < numTransactions; i += 2 {
 		tx := cgo.Handle(txes[i]).Value().(*TransactionHandle)
 		tx.transaction.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
@@ -90,6 +92,8 @@ func TestMultipleWafsAllocatedDeallocated(t *testing.T) {
 	for i := 0; i < numWafs; i++ {
 		wafs[i] = cgo.Handle(coraza_new_waf())
 	}
+	// free every other waf while performing an operation on the other waf
+	// if there are any collisions between handles, this will result in a seg fault
 	for i := 1; i < numWafs; i += 2 {
 		coraza_new_transaction(wafFromCgoHandle(cgo.Handle(wafs[i-1])), nil)
 		coraza_free_waf(wafFromCgoHandle(cgo.Handle(wafs[i])))
