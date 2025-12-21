@@ -35,7 +35,7 @@ docs:
 # build C header doxygen
 	@doxygen ./Doxyfile
 
-check_PROGRAMS = tests/simple_get tests/config
+check_PROGRAMS = tests/simple_get
 
 if OSX
 AM_LDFLAGS = -framework CoreFoundation -framework Security
@@ -48,9 +48,5 @@ endif
 tests_simple_get_LDFLAGS = $(AM_LDFLAGS)
 tests_simple_get_LDADD = ./libcoraza.a
 
-tests_config_LDFLAGS = $(AM_LDFLAGS)
-tests_config_LDADD = ./libcoraza.a
-
-check: tests/simple_get tests/config
+check: tests/simple_get
 	./tests/simple_get
-	./tests/config

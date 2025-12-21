@@ -34,39 +34,12 @@ import (
 	"github.com/corazawaf/coraza/v3/types"
 )
 
-type WafConfigHandle struct {
-	config coraza.WAFConfig
-}
-
 type WafHandle struct {
 	waf coraza.WAF
 }
 
 type TransactionHandle struct {
 	transaction types.Transaction
-}
-
-//export coraza_new_waf_config
-func coraza_new_waf_config() C.coraza_waf_config_t {
-	config := coraza.NewWAFConfig()
-	handle := &WafConfigHandle{
-		config: config,
-	}
-	return C.coraza_waf_config_t(cgo.NewHandle(handle))
-}
-
-//export coraza_add_rules_to_waf_config
-func coraza_add_rules_to_waf_config(c C.coraza_waf_config_t, rules *C.char) C.int {
-	handle := cgo.Handle(c).Value().(*WafConfigHandle)
-	handle.config = handle.config.WithDirectives(C.GoString(rules))
-	return 0
-}
-
-//export coraza_add_rules_from_file_to_waf_config
-func coraza_add_rules_from_file_to_waf_config(c C.coraza_waf_config_t, file *C.char) C.int {
-	handle := cgo.Handle(c).Value().(*WafConfigHandle)
-	handle.config = handle.config.WithDirectivesFromFile(C.GoString(file))
-	return 0
 }
 
 //export coraza_free_waf_config
@@ -82,19 +55,6 @@ func coraza_free_waf_config(c C.coraza_waf_config_t) {
 func coraza_new_waf() C.coraza_waf_t {
 	config := coraza.NewWAFConfig()
 	waf, err := coraza.NewWAF(config)
-	if err != nil {
-		return 0
-	}
-	handle := &WafHandle{
-		waf: waf,
-	}
-	return C.coraza_waf_t(cgo.NewHandle(handle))
-}
-
-//export coraza_new_waf_with_config
-func coraza_new_waf_with_config(c C.coraza_waf_config_t) C.coraza_waf_t {
-	wafConfigHandle := cgo.Handle(c).Value().(*WafConfigHandle)
-	waf, err := coraza.NewWAF(wafConfigHandle.config)
 	if err != nil {
 		return 0
 	}
