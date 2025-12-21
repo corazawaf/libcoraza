@@ -50,4 +50,4 @@ tests_simple_get_LDADD = ./libcoraza.a
 
 check: tests/simple_get
 	go test -race ./...
-	./tests/simple_get
+	cd tests && ./check_result.sh simple_get

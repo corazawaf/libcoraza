@@ -1,0 +1,17 @@
+Compiling rules...
+Attaching log callback
+Starting...
+0 rules compiled
+Creating transaction...
+Processing connection...
+Processing request line
+Processing phase 1
+Processing phase 2
+[simple_get][level 4] Calling ProcessRequestBody but there is a preexisting interruption tx_id="simple_get"
+Processing phase 3
+[simple_get][level 4] Calling ProcessResponseHeaders but there is a preexisting interruption tx_id="simple_get"
+Processing phase 4
+[simple_get][level 4] Calling ProcessResponseBody but there is a preexisting interruption tx_id="simple_get"
+Processing phase 5
+Processing intervention
+Transaction disrupted with status 403

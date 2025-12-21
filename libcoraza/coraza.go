@@ -20,8 +20,20 @@ typedef uintptr_t coraza_waf_config_t;
 typedef uintptr_t coraza_waf_t;
 typedef uintptr_t coraza_transaction_t;
 
-typedef void (*coraza_log_cb) (const void *);
-void send_log_to_cb(coraza_log_cb cb, const char *msg);
+typedef enum coraza_debug_log_level_t {
+	CORAZA_DEBUG_LOG_LEVEL_TRACE,
+	CORAZA_DEBUG_LOG_LEVEL_DEBUG,
+	CORAZA_DEBUG_LOG_LEVEL_INFO,
+	CORAZA_DEBUG_LOG_LEVEL_WARN,
+	CORAZA_DEBUG_LOG_LEVEL_ERROR,
+} coraza_debug_log_level_t;
+
+typedef void (*coraza_debug_log_cb) (void *, coraza_debug_log_level_t, const char *msg, const char *fields);
+
+static void call_debug_log_cb(coraza_debug_log_cb cb, void *ctx, coraza_debug_log_level_t level, const char *msg, const char *fields) {
+	cb(ctx, level, msg, fields);
+}
+
 #endif
 */
 import "C"
@@ -32,6 +44,7 @@ import (
 	"unsafe"
 
 	"github.com/corazawaf/coraza/v3"
+	"github.com/corazawaf/coraza/v3/debuglog"
 	"github.com/corazawaf/coraza/v3/types"
 	"golang.org/x/exp/constraints"
 )
@@ -61,6 +74,40 @@ func coraza_rules_add(c C.coraza_waf_config_t, directives *C.char) C.int {
 	return 0
 }
 
+/**
+ * Adds a debug log callback to a WAF config
+ * @param[in] pointer to valid WAF config
+ * @param[in] pointer to log callback
+ * @param[in] pointer to custom user context passed every time the log callback is called. This must live as long as
+ * while the parent config and its dependent objects are active.
+ * @returns 0 on success, 1 on failure
+ */
+//export coraza_add_debug_log_callback
+func coraza_add_debug_log_callback(c C.coraza_waf_config_t, cb C.coraza_debug_log_cb, userContext *C.void) C.int {
+	configHandle := fromRaw[*WafConfigHandle](c)
+	configHandle.config = configHandle.config.WithDebugLogger(newDebugLogger(func(lvl debuglog.Level, message, fields string) {
+		rawLevel := C.CORAZA_DEBUG_LOG_LEVEL_DEBUG
+		switch lvl {
+		case debuglog.LevelTrace:
+			rawLevel = C.CORAZA_DEBUG_LOG_LEVEL_TRACE
+		case debuglog.LevelDebug:
+			rawLevel = C.CORAZA_DEBUG_LOG_LEVEL_DEBUG
+		case debuglog.LevelInfo:
+			rawLevel = C.CORAZA_DEBUG_LOG_LEVEL_INFO
+		case debuglog.LevelWarn:
+			rawLevel = C.CORAZA_DEBUG_LOG_LEVEL_WARN
+		case debuglog.LevelError:
+			rawLevel = C.CORAZA_DEBUG_LOG_LEVEL_ERROR
+		}
+		cMsg := C.CString(message)
+		cFields := C.CString(fields)
+		defer C.free(unsafe.Pointer(cMsg))
+		defer C.free(unsafe.Pointer(cFields))
+		C.call_debug_log_cb(cb, unsafe.Pointer(userContext), C.coraza_debug_log_level_t(rawLevel), cMsg, cFields)
+	}))
+	return 0
+}
+
 //export coraza_free_waf_config
 func coraza_free_waf_config(config C.coraza_waf_config_t) C.int {
 	deleteRaw(config)
@@ -85,18 +132,17 @@ func coraza_new_waf(config C.coraza_waf_config_t, er **C.char) C.coraza_waf_t {
 /**
  * Creates a new transaction for a WAF instance
  * @param[in] pointer to valid WAF instance
- * @param[in] pointer to log callback, can be null
  * @returns pointer to transaction
  */
 //export coraza_new_transaction
-func coraza_new_transaction(w C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_transaction_t {
+func coraza_new_transaction(w C.coraza_waf_t) C.coraza_transaction_t {
 	waf := fromRaw[coraza.WAF](w)
 	tx := waf.NewTransaction()
 	return C.coraza_transaction_t(cgo.NewHandle(tx))
 }
 
 //export coraza_new_transaction_with_id
-func coraza_new_transaction_with_id(w C.coraza_waf_t, id *C.char, logCb unsafe.Pointer) C.coraza_transaction_t {
+func coraza_new_transaction_with_id(w C.coraza_waf_t, id *C.char) C.coraza_transaction_t {
 	waf := fromRaw[coraza.WAF](w)
 	tx := waf.NewTransactionWithID(C.GoString(id))
 	return C.coraza_transaction_t(cgo.NewHandle(tx))
@@ -280,10 +326,6 @@ func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int
 func coraza_free_waf(t C.coraza_waf_t) C.int {
 	deleteRaw(t)
 	return 0
-}
-
-//export coraza_set_log_cb
-func coraza_set_log_cb(waf C.coraza_waf_t, cb C.coraza_log_cb) {
 }
 
 /*
