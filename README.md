@@ -7,7 +7,7 @@ Welcome to libcoraza, the C library for OWASP Coraza Web Application Firewall. B
 * a C compiler:
   * gcc or
   * clang
-* Golang compiler v1.18+
+* Golang compiler v1.24+
 * libtools
 * autotools
 * make
