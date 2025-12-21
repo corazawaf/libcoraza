@@ -67,6 +67,38 @@ func TestTransactionInitialization(t *testing.T) {
 	tx.transaction.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
 }
 
+func TestMultipleTransactionsAllocatedDeallocated(t *testing.T) {
+	const numTransactions = 1000
+	waf := coraza_new_waf()
+	txes := make([]cgo.Handle, numTransactions)
+	for i := 0; i < numTransactions; i++ {
+		txes[i] = cgo.Handle(coraza_new_transaction(waf, nil))
+	}
+	for i := 1; i < numTransactions; i += 2 {
+		tx := cgo.Handle(txes[i]).Value().(*TransactionHandle)
+		tx.transaction.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
+		coraza_free_transaction(txFromCgoHandle(txes[i]))
+	}
+	for i := 0; i < numTransactions; i += 2 {
+		coraza_free_transaction(txFromCgoHandle(txes[i]))
+	}
+}
+
+func TestMultipleWafsAllocatedDeallocated(t *testing.T) {
+	const numWafs = 1000
+	wafs := make([]cgo.Handle, numWafs)
+	for i := 0; i < numWafs; i++ {
+		wafs[i] = cgo.Handle(coraza_new_waf())
+	}
+	for i := 1; i < numWafs; i += 2 {
+		coraza_new_transaction(wafFromCgoHandle(cgo.Handle(wafs[i-1])), nil)
+		coraza_free_waf(wafFromCgoHandle(cgo.Handle(wafs[i])))
+	}
+	for i := 0; i < numWafs; i += 2 {
+		coraza_free_waf(wafFromCgoHandle(cgo.Handle(wafs[i])))
+	}
+}
+
 func TestParallelWafs(t *testing.T) {
 	const numParallelWafs = 30
 	const numTotalWafs = 1000

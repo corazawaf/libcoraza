@@ -316,4 +316,12 @@ func stringFromC(c *C.char) string {
 	return C.GoString(c)
 }
 
+func txFromCgoHandle(h cgo.Handle) C.coraza_transaction_t {
+	return C.coraza_transaction_t(h)
+}
+
+func wafFromCgoHandle(h cgo.Handle) C.coraza_waf_t {
+	return C.coraza_waf_t(h)
+}
+
 func main() {}
