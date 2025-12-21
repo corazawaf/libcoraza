@@ -9,6 +9,7 @@ import (
 
 	"github.com/corazawaf/coraza/v3"
 	"github.com/corazawaf/coraza/v3/experimental/plugins/plugintypes"
+	"github.com/corazawaf/coraza/v3/types"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 )
@@ -34,8 +35,8 @@ func TestCoraza_add_get_args(t *testing.T) {
 	waf := coraza_new_waf()
 	tt := coraza_new_transaction(waf, nil)
 	coraza_add_get_args(tt, stringToC("aa"), stringToC("bb"))
-	tx := cgo.Handle(tt).Value().(*TransactionHandle)
-	txi := tx.transaction.(plugintypes.TransactionState)
+	tx := cgo.Handle(tt).Value().(types.Transaction)
+	txi := tx.(plugintypes.TransactionState)
 	argsGet := txi.Variables().ArgsGet()
 	value := argsGet.Get("aa")
 	if len(value) != 1 && value[0] != "bb" {
@@ -63,8 +64,8 @@ func TestTransactionInitialization(t *testing.T) {
 	if t2 == tt {
 		t.Fatal("Transactions are duplicated")
 	}
-	tx := cgo.Handle(tt).Value().(*TransactionHandle)
-	tx.transaction.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
+	tx := cgo.Handle(tt).Value().(types.Transaction)
+	tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
 }
 
 func TestMultipleTransactionsAllocatedDeallocated(t *testing.T) {
@@ -77,8 +78,8 @@ func TestMultipleTransactionsAllocatedDeallocated(t *testing.T) {
 	// free every other transaction while performing an operation on the other transaction
 	// if there are any collisions between handles, this will result in a seg fault
 	for i := 1; i < numTransactions; i += 2 {
-		tx := cgo.Handle(txes[i]).Value().(*TransactionHandle)
-		tx.transaction.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
+		tx := cgo.Handle(txes[i]).Value().(types.Transaction)
+		tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
 		coraza_free_transaction(txFromCgoHandle(txes[i]))
 	}
 	for i := 0; i < numTransactions; i += 2 {
@@ -198,7 +199,7 @@ func TestParallelTransactions(t *testing.T) {
 			runtime.GC()
 
 			// check if the transaction handle is valid
-			_, ok := cgo.Handle(tt).Value().(*TransactionHandle)
+			_, ok := cgo.Handle(tt).Value().(types.Transaction)
 			if !ok {
 				return errors.New("Transaction handle conversion failed")
 			}
@@ -243,16 +244,16 @@ func BenchmarkTransactionProcessing(b *testing.B) {
 	coraza_rules_add(waf, stringToC(`SecRule UNIQUE_ID "" "id:1"`), nil)
 	for i := 0; i < b.N; i++ {
 		txPtr := coraza_new_transaction(waf, nil)
-		tx := cgo.Handle(txPtr).Value().(*TransactionHandle)
-		tx.transaction.ProcessConnection("127.0.0.1", 55555, "127.0.0.1", 80)
-		tx.transaction.ProcessURI("https://www.example.com/some?params=123", "GET", "HTTP/1.1")
-		tx.transaction.AddRequestHeader("Host", "www.example.com")
-		tx.transaction.ProcessRequestHeaders()
-		tx.transaction.ProcessRequestBody()
-		tx.transaction.AddResponseHeader("Content-Type", "text/html")
-		tx.transaction.ProcessResponseHeaders(200, "OK")
-		tx.transaction.ProcessResponseBody()
-		tx.transaction.ProcessLogging()
-		tx.transaction.Close()
+		tx := cgo.Handle(txPtr).Value().(types.Transaction)
+		tx.ProcessConnection("127.0.0.1", 55555, "127.0.0.1", 80)
+		tx.ProcessURI("https://www.example.com/some?params=123", "GET", "HTTP/1.1")
+		tx.AddRequestHeader("Host", "www.example.com")
+		tx.ProcessRequestHeaders()
+		tx.ProcessRequestBody()
+		tx.AddResponseHeader("Content-Type", "text/html")
+		tx.ProcessResponseHeaders(200, "OK")
+		tx.ProcessResponseBody()
+		tx.ProcessLogging()
+		tx.Close()
 	}
 }

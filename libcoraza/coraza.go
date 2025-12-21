@@ -33,17 +33,8 @@ import (
 	"github.com/corazawaf/coraza/v3/types"
 )
 
-// Each coraza type is wrapped in a struct that is passed as a pointer across the FFI boundary
-// through a cgo.Handle. This helps ensure that every handle passed across the FFI boundary consistently
-// references the same underlying object. This is not guaranteed to be the case for other types such as
-// interfaces or concrete types, which will be copied when cgo.Handle's Value() method is called.
-
 type WafHandle struct {
 	waf coraza.WAF
-}
-
-type TransactionHandle struct {
-	transaction types.Transaction
 }
 
 /**
@@ -73,49 +64,43 @@ func coraza_new_waf() C.coraza_waf_t {
 func coraza_new_transaction(waf C.coraza_waf_t, logCb unsafe.Pointer) C.coraza_transaction_t {
 	handle := cgo.Handle(waf).Value().(*WafHandle)
 	tx := handle.waf.NewTransaction()
-	txHandle := &TransactionHandle{
-		transaction: tx,
-	}
-	return C.coraza_transaction_t(cgo.NewHandle(txHandle))
+	return C.coraza_transaction_t(cgo.NewHandle(tx))
 }
 
 //export coraza_new_transaction_with_id
 func coraza_new_transaction_with_id(waf C.coraza_waf_t, id *C.char, logCb unsafe.Pointer) C.coraza_transaction_t {
 	handle := cgo.Handle(waf).Value().(*WafHandle)
 	tx := handle.waf.NewTransactionWithID(C.GoString(id))
-	txHandle := &TransactionHandle{
-		transaction: tx,
-	}
-	return C.coraza_transaction_t(cgo.NewHandle(txHandle))
+	return C.coraza_transaction_t(cgo.NewHandle(tx))
 }
 
 //export coraza_intervention
-func coraza_intervention(tx C.coraza_transaction_t) *C.coraza_intervention_t {
-	handle := cgo.Handle(tx).Value().(*TransactionHandle)
-	if handle.transaction.Interruption() == nil {
+func coraza_intervention(t C.coraza_transaction_t) *C.coraza_intervention_t {
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	if tx.Interruption() == nil {
 		return nil
 	}
 	mem := (*C.coraza_intervention_t)(C.malloc(C.size_t(unsafe.Sizeof(C.coraza_intervention_t{}))))
-	mem.action = C.CString(handle.transaction.Interruption().Action)
-	mem.status = C.int(handle.transaction.Interruption().Status)
+	mem.action = C.CString(tx.Interruption().Action)
+	mem.status = C.int(tx.Interruption().Status)
 	return mem
 }
 
 //export coraza_process_connection
 func coraza_process_connection(t C.coraza_transaction_t, sourceAddress *C.char, clientPort C.int, serverHost *C.char, serverPort C.int) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
+	tx := cgo.Handle(t).Value().(types.Transaction)
 	srcAddr := C.GoString(sourceAddress)
 	cp := int(clientPort)
 	ch := C.GoString(serverHost)
 	sp := int(serverPort)
-	handle.transaction.ProcessConnection(srcAddr, cp, ch, sp)
+	tx.ProcessConnection(srcAddr, cp, ch, sp)
 	return 0
 }
 
 //export coraza_process_request_body
 func coraza_process_request_body(t C.coraza_transaction_t) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	if _, err := handle.transaction.ProcessRequestBody(); err != nil {
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	if _, err := tx.ProcessRequestBody(); err != nil {
 		return 1
 	}
 	return 0
@@ -123,9 +108,9 @@ func coraza_process_request_body(t C.coraza_transaction_t) C.int {
 
 //export coraza_update_status_code
 func coraza_update_status_code(t C.coraza_transaction_t, code C.int) C.int {
-	//handle := cgo.Handle(t).Value().(*TransactionHandle)
+	//tx := cgo.Handle(t).Value().(types.Transaction)
 	//c := strconv.Itoa(int(code))
-	//handle.transaction.Variables().ResponseStatus.Set(c)
+	//tx.Variables().ResponseStatus.Set(c)
 	return 0
 }
 
@@ -133,37 +118,37 @@ func coraza_update_status_code(t C.coraza_transaction_t, code C.int) C.int {
 //
 //export coraza_process_uri
 func coraza_process_uri(t C.coraza_transaction_t, uri *C.char, method *C.char, proto *C.char) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
+	tx := cgo.Handle(t).Value().(types.Transaction)
 
-	handle.transaction.ProcessURI(C.GoString(uri), C.GoString(method), C.GoString(proto))
+	tx.ProcessURI(C.GoString(uri), C.GoString(method), C.GoString(proto))
 	return 0
 }
 
 //export coraza_add_request_header
 func coraza_add_request_header(t C.coraza_transaction_t, name *C.char, name_len C.int, value *C.char, value_len C.int) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	handle.transaction.AddRequestHeader(C.GoStringN(name, name_len), C.GoStringN(value, value_len))
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	tx.AddRequestHeader(C.GoStringN(name, name_len), C.GoStringN(value, value_len))
 	return 0
 }
 
 //export coraza_process_request_headers
 func coraza_process_request_headers(t C.coraza_transaction_t) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	handle.transaction.ProcessRequestHeaders()
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	tx.ProcessRequestHeaders()
 	return 0
 }
 
 //export coraza_process_logging
 func coraza_process_logging(t C.coraza_transaction_t) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	handle.transaction.ProcessLogging()
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	tx.ProcessLogging()
 	return 0
 }
 
 //export coraza_append_request_body
 func coraza_append_request_body(t C.coraza_transaction_t, data *C.uchar, length C.int) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	if _, _, err := handle.transaction.WriteRequestBody(C.GoBytes(unsafe.Pointer(data), length)); err != nil {
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	if _, _, err := tx.WriteRequestBody(C.GoBytes(unsafe.Pointer(data), length)); err != nil {
 		return 1
 	}
 	return 0
@@ -171,22 +156,22 @@ func coraza_append_request_body(t C.coraza_transaction_t, data *C.uchar, length 
 
 //export coraza_add_get_args
 func coraza_add_get_args(t C.coraza_transaction_t, name *C.char, value *C.char) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	handle.transaction.AddGetRequestArgument(C.GoString(name), C.GoString(value))
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	tx.AddGetRequestArgument(C.GoString(name), C.GoString(value))
 	return 0
 }
 
 //export coraza_add_response_header
 func coraza_add_response_header(t C.coraza_transaction_t, name *C.char, name_len C.int, value *C.char, value_len C.int) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	handle.transaction.AddResponseHeader(C.GoStringN(name, name_len), C.GoStringN(value, value_len))
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	tx.AddResponseHeader(C.GoStringN(name, name_len), C.GoStringN(value, value_len))
 	return 0
 }
 
 //export coraza_append_response_body
 func coraza_append_response_body(t C.coraza_transaction_t, data *C.uchar, length C.int) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	if _, _, err := handle.transaction.WriteResponseBody(C.GoBytes(unsafe.Pointer(data), length)); err != nil {
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	if _, _, err := tx.WriteResponseBody(C.GoBytes(unsafe.Pointer(data), length)); err != nil {
 		return 1
 	}
 	return 0
@@ -194,8 +179,8 @@ func coraza_append_response_body(t C.coraza_transaction_t, data *C.uchar, length
 
 //export coraza_process_response_body
 func coraza_process_response_body(t C.coraza_transaction_t) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	if _, err := handle.transaction.ProcessResponseBody(); err != nil {
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	if _, err := tx.ProcessResponseBody(); err != nil {
 		return 1
 	}
 	return 0
@@ -203,8 +188,8 @@ func coraza_process_response_body(t C.coraza_transaction_t) C.int {
 
 //export coraza_process_response_headers
 func coraza_process_response_headers(t C.coraza_transaction_t, status C.int, proto *C.char) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	handle.transaction.ProcessResponseHeaders(int(status), C.GoString(proto))
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	tx.ProcessResponseHeaders(int(status), C.GoString(proto))
 	return 0
 }
 
@@ -243,8 +228,8 @@ func coraza_rules_count(w C.coraza_waf_t) C.int {
 
 //export coraza_free_transaction
 func coraza_free_transaction(t C.coraza_transaction_t) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
-	if handle.transaction.Close() != nil {
+	tx := cgo.Handle(t).Value().(types.Transaction)
+	if tx.Close() != nil {
 		return 1
 	}
 	return 0
@@ -267,7 +252,7 @@ func coraza_rules_merge(w1 C.coraza_waf_t, w2 C.coraza_waf_t, er **C.char) C.int
 
 //export coraza_request_body_from_file
 func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int {
-	handle := cgo.Handle(t).Value().(*TransactionHandle)
+	tx := cgo.Handle(t).Value().(types.Transaction)
 	f, err := os.Open(C.GoString(file))
 	if err != nil {
 		return 1
@@ -283,7 +268,7 @@ func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int
 			}
 			return 1
 		}
-		if _, _, err := handle.transaction.WriteRequestBody(buf[:n]); err != nil {
+		if _, _, err := tx.WriteRequestBody(buf[:n]); err != nil {
 			return 1
 		}
 	}
@@ -292,7 +277,6 @@ func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int
 
 //export coraza_free_waf
 func coraza_free_waf(t C.coraza_waf_t) C.int {
-	// waf := ptrToWaf(t)
 	cgo.Handle(t).Delete()
 	return 0
 }
