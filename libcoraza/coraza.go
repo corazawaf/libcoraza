@@ -15,7 +15,6 @@ typedef struct coraza_intervention_t
     int disruptive;
 } coraza_intervention_t;
 
-typedef uint64_t coraza_waf_config_t;
 typedef uint64_t coraza_waf_t;
 typedef uint64_t coraza_transaction_t;
 
@@ -45,11 +44,6 @@ type WafHandle struct {
 
 type TransactionHandle struct {
 	transaction types.Transaction
-}
-
-//export coraza_free_waf_config
-func coraza_free_waf_config(c C.coraza_waf_config_t) {
-	cgo.Handle(c).Delete()
 }
 
 /**
