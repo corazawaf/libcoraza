@@ -7,18 +7,18 @@ void logcb(const void *data)
     printf("%s\n", (const char *)data);
 }
 
+
 int main()
 {
     coraza_waf_t waf = 0;
     coraza_transaction_t tx = 0;
     coraza_intervention_t *intervention = NULL;
     char *err = NULL;
-    char **uri = NULL;
+    char ** uri = NULL;
 
     printf("Starting...\n");
     waf = coraza_new_waf();
-    if (waf == 0)
-    {
+    if (waf == 0) {
         printf("Failed to create waf\n");
         return 1;
     }
@@ -27,8 +27,7 @@ int main()
 
     printf("Compiling rules...\n");
     coraza_rules_add(waf, "SecRule REMOTE_ADDR \"127.0.0.1\" \"id:1,phase:1,deny,log,msg:'test 123',status:403\"", &err);
-    if (err)
-    {
+    if(err) {
         printf("%s\n", err);
         return 1;
     }
@@ -36,8 +35,7 @@ int main()
     printf("%d rules compiled\n", coraza_rules_count(waf));
     printf("Creating transaction...\n");
     tx = coraza_new_transaction(waf, NULL);
-    if (tx == 0)
-    {
+    if(tx == 0) {
         printf("Failed to create transaction\n");
         return 1;
     }
@@ -66,8 +64,7 @@ int main()
     }
     printf("Transaction disrupted with status %d\n", intervention->status);
 
-    if (coraza_free_transaction(tx) != 0)
-    {
+    if(coraza_free_transaction(tx) != 0) {
         printf("Failed to free transaction 1\n");
         return 1;
     }
