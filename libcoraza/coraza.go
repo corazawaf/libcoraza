@@ -34,6 +34,11 @@ import (
 	"github.com/corazawaf/coraza/v3/types"
 )
 
+// Each coraza type is wrapped in a struct that is passed as a pointer across the FFI boundary
+// through a cgo.Handle. This helps ensure that every handle passed across the FFI boundary consistently
+// references the same underlying object. This is not guaranteed to be the case for other types such as
+// interfaces or concrete types, which will be copied when cgo.Handle's Value() method is called.
+
 type WafHandle struct {
 	waf coraza.WAF
 }
