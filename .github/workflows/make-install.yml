@@ -31,7 +31,7 @@ jobs:
     - name: Compile
       run: |
         make V=1
-    - name: Check
+    - name: Test
       run: |
         make check
     - name: Install
