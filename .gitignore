@@ -28,7 +28,6 @@ macros
 missing
 stamp-h1
 tests/simple_get
-tests/config
 tests/Makefile
 depcomp
 _obj/
