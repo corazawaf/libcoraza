@@ -2,7 +2,10 @@ module github.com/corazawaf/libcoraza
 
 go 1.23.0
 
-require github.com/corazawaf/coraza/v3 v3.3.3
+require (
+	github.com/corazawaf/coraza/v3 v3.3.3
+	golang.org/x/sync v0.16.0
+)
 
 require (
 	github.com/corazawaf/libinjection-go v0.2.2 // indirect
@@ -13,7 +16,6 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valllabh/ocsf-schema-golang v1.0.3 // indirect
 	golang.org/x/net v0.37.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
 	google.golang.org/protobuf v1.35.1 // indirect
 	rsc.io/binaryregexp v0.2.0 // indirect
 )

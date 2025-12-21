@@ -1,10 +1,17 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"runtime"
+	"runtime/cgo"
 	"testing"
 
 	"github.com/corazawaf/coraza/v3"
 	"github.com/corazawaf/coraza/v3/experimental/plugins/plugintypes"
+	"github.com/corazawaf/coraza/v3/types"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
 var waf *coraza.WAF
@@ -28,7 +35,7 @@ func TestCoraza_add_get_args(t *testing.T) {
 	waf := coraza_new_waf()
 	tt := coraza_new_transaction(waf, nil)
 	coraza_add_get_args(tt, stringToC("aa"), stringToC("bb"))
-	tx := ptrToTransaction(tt)
+	tx := cgo.Handle(tt).Value().(types.Transaction)
 	txi := tx.(plugintypes.TransactionState)
 	argsGet := txi.Variables().ArgsGet()
 	value := argsGet.Get("aa")
@@ -57,16 +64,171 @@ func TestTransactionInitialization(t *testing.T) {
 	if t2 == tt {
 		t.Fatal("Transactions are duplicated")
 	}
-	tx := ptrToTransaction(tt)
+	tx := cgo.Handle(tt).Value().(types.Transaction)
 	tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
 }
 
-func TestTxCleaning(t *testing.T) {
+func TestMultipleTransactionsAllocatedDeallocated(t *testing.T) {
+	const numTransactions = 1000
 	waf := coraza_new_waf()
-	txPtr := coraza_new_transaction(waf, nil)
-	coraza_free_transaction(txPtr)
-	if _, ok := txMap[uint64(txPtr)]; ok {
-		t.Fatal("Transaction was not removed from the map")
+	txes := make([]cgo.Handle, numTransactions)
+	for i := 0; i < numTransactions; i++ {
+		txes[i] = cgo.Handle(coraza_new_transaction(waf, nil))
+	}
+	// free every other transaction while performing an operation on the other transaction
+	// if there are any collisions between handles, this will result in a seg fault
+	for i := 1; i < numTransactions; i += 2 {
+		tx := cgo.Handle(txes[i]).Value().(types.Transaction)
+		tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
+		coraza_free_transaction(txFromCgoHandle(txes[i]))
+	}
+	for i := 0; i < numTransactions; i += 2 {
+		coraza_free_transaction(txFromCgoHandle(txes[i]))
+	}
+}
+
+func TestMultipleWafsAllocatedDeallocated(t *testing.T) {
+	const numWafs = 1000
+	wafs := make([]cgo.Handle, numWafs)
+	for i := 0; i < numWafs; i++ {
+		wafs[i] = cgo.Handle(coraza_new_waf())
+	}
+	// free every other waf while performing an operation on the other waf
+	// if there are any collisions between handles, this will result in a seg fault
+	for i := 1; i < numWafs; i += 2 {
+		coraza_new_transaction(wafFromCgoHandle(cgo.Handle(wafs[i-1])), nil)
+		coraza_free_waf(wafFromCgoHandle(cgo.Handle(wafs[i])))
+	}
+	for i := 0; i < numWafs; i += 2 {
+		coraza_free_waf(wafFromCgoHandle(cgo.Handle(wafs[i])))
+	}
+}
+
+func TestParallelWafs(t *testing.T) {
+	const numParallelWafs = 30
+	const numTotalWafs = 1000
+
+	errgrp, _ := errgroup.WithContext(context.Background())
+	sm := semaphore.NewWeighted(numParallelWafs)
+	for i := 0; i < numTotalWafs; i++ {
+		errgrp.Go(func() error {
+			// acquire the semaphore
+			if err := sm.Acquire(context.Background(), 1); err != nil {
+				return err
+			}
+			defer sm.Release(1)
+
+			// initialize the waf
+			runtime.GC()
+			waf := coraza_new_waf()
+			if waf == 0 {
+				return errors.New("Waf initialization failed")
+			}
+			runtime.GC()
+			rv := coraza_rules_add(waf, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,log,msg:'test 123',status:403"`), nil)
+			if rv != 1 {
+				return errors.New("Rules addition failed")
+			}
+
+			// check if the waf handle is valid
+			_, ok := cgo.Handle(waf).Value().(*WafHandle)
+			if !ok {
+				return errors.New("Waf handle conversion failed")
+			}
+
+			// create a transaction
+			tt := coraza_new_transaction(waf, nil)
+			if tt == 0 {
+				return errors.New("Transaction initialization failed")
+			}
+
+			// process the transaction
+			coraza_process_connection(tt, stringToC("127.0.0.1"), 8080, stringToC("127.0.0.1"), 80)
+			coraza_process_request_headers(tt) // change phase to trigger the rule
+			intervention := coraza_intervention(tt)
+			if intervention == nil {
+				return errors.New("Intervention is nil")
+			}
+			if intervention.status != 403 {
+				return errors.New("Intervention status is not 403")
+			}
+
+			// deinitialize the transaction
+			rv = coraza_free_transaction(tt)
+			if rv != 0 {
+				return errors.New("Transaction deinitialization failed")
+			}
+
+			// deinitialize the waf
+			runtime.GC()
+			rv = coraza_free_waf(waf)
+			if rv != 0 {
+				return errors.New("Waf deinitialization failed")
+			}
+			runtime.GC()
+			return nil
+		})
+	}
+	if err := errgrp.Wait(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestParallelTransactions(t *testing.T) {
+	const numParallelTransactions = 30
+	const numTotalTransactions = 1000
+
+	waf := coraza_new_waf()
+	coraza_rules_add(waf, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,log,msg:'test 123',status:403"`), nil)
+	errgrp, _ := errgroup.WithContext(context.Background())
+	sm := semaphore.NewWeighted(numParallelTransactions)
+	for i := 0; i < numTotalTransactions; i++ {
+		errgrp.Go(func() error {
+			// acquire the semaphore
+			if err := sm.Acquire(context.Background(), 1); err != nil {
+				return err
+			}
+			defer sm.Release(1)
+
+			// initialize the transaction
+			runtime.GC()
+			tt := coraza_new_transaction(waf, nil)
+			if tt == 0 {
+				return errors.New("Transaction initialization failed")
+			}
+			runtime.GC()
+
+			// check if the transaction handle is valid
+			_, ok := cgo.Handle(tt).Value().(types.Transaction)
+			if !ok {
+				return errors.New("Transaction handle conversion failed")
+			}
+
+			coraza_process_connection(tt, stringToC("127.0.0.1"), 8080, stringToC("127.0.0.1"), 80)
+			coraza_process_request_headers(tt) // change phase to trigger the rule
+			intervention := coraza_intervention(tt)
+			if intervention == nil {
+				return errors.New("Intervention is nil")
+			}
+			if intervention.status != 403 {
+				return errors.New("Intervention status is not 403")
+			}
+			if stringFromC(intervention.action) != "deny" {
+				return errors.New("Intervention action is not deny")
+			}
+
+			// deinitialize the transaction
+			runtime.GC()
+			rv := coraza_free_transaction(tt)
+			if rv != 0 {
+				return errors.New("Transaction deinitialization failed")
+			}
+			runtime.GC()
+			return nil
+		})
+	}
+	if err := errgrp.Wait(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -82,7 +244,7 @@ func BenchmarkTransactionProcessing(b *testing.B) {
 	coraza_rules_add(waf, stringToC(`SecRule UNIQUE_ID "" "id:1"`), nil)
 	for i := 0; i < b.N; i++ {
 		txPtr := coraza_new_transaction(waf, nil)
-		tx := ptrToTransaction(txPtr)
+		tx := cgo.Handle(txPtr).Value().(types.Transaction)
 		tx.ProcessConnection("127.0.0.1", 55555, "127.0.0.1", 80)
 		tx.ProcessURI("https://www.example.com/some?params=123", "GET", "HTTP/1.1")
 		tx.AddRequestHeader("Host", "www.example.com")

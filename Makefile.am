@@ -49,4 +49,5 @@ tests_simple_get_LDFLAGS = $(AM_LDFLAGS)
 tests_simple_get_LDADD = ./libcoraza.a
 
 check: tests/simple_get
+	go test -race ./...
 	./tests/simple_get
