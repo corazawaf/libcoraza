@@ -4,7 +4,7 @@ on:
   push:
   pull_request:
 jobs:
-  make-install:
+  make-targets:
     strategy:
       matrix:
         go-version: [1.18.x, 1.19.x]
@@ -31,6 +31,9 @@ jobs:
     - name: Compile
       run: |
         make V=1
+    - name: Check
+      run: |
+        make check
     - name: Install
       run: |
         sudo make V=1 install

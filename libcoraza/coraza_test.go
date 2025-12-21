@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"runtime"
 	"runtime/cgo"
 	"testing"
 
 	"github.com/corazawaf/coraza/v3"
 	"github.com/corazawaf/coraza/v3/experimental/plugins/plugintypes"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
 var waf *coraza.WAF
@@ -60,6 +65,134 @@ func TestTransactionInitialization(t *testing.T) {
 	}
 	tx := cgo.Handle(tt).Value().(*TransactionHandle)
 	tx.transaction.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
+}
+
+func TestParallelWafs(t *testing.T) {
+	const numParallelWafs = 30
+	const numTotalWafs = 1000
+
+	errgrp, _ := errgroup.WithContext(context.Background())
+	sm := semaphore.NewWeighted(numParallelWafs)
+	for i := 0; i < numTotalWafs; i++ {
+		errgrp.Go(func() error {
+			// acquire the semaphore
+			if err := sm.Acquire(context.Background(), 1); err != nil {
+				return err
+			}
+			defer sm.Release(1)
+
+			// initialize the waf
+			runtime.GC()
+			waf := coraza_new_waf()
+			if waf == 0 {
+				return errors.New("Waf initialization failed")
+			}
+			runtime.GC()
+			rv := coraza_rules_add(waf, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,log,msg:'test 123',status:403"`), nil)
+			if rv != 1 {
+				return errors.New("Rules addition failed")
+			}
+
+			// check if the waf handle is valid
+			_, ok := cgo.Handle(waf).Value().(*WafHandle)
+			if !ok {
+				return errors.New("Waf handle conversion failed")
+			}
+
+			// create a transaction
+			tt := coraza_new_transaction(waf, nil)
+			if tt == 0 {
+				return errors.New("Transaction initialization failed")
+			}
+
+			// process the transaction
+			coraza_process_connection(tt, stringToC("127.0.0.1"), 8080, stringToC("127.0.0.1"), 80)
+			coraza_process_request_headers(tt) // change phase to trigger the rule
+			intervention := coraza_intervention(tt)
+			if intervention == nil {
+				return errors.New("Intervention is nil")
+			}
+			if intervention.status != 403 {
+				return errors.New("Intervention status is not 403")
+			}
+
+			// deinitialize the transaction
+			rv = coraza_free_transaction(tt)
+			if rv != 0 {
+				return errors.New("Transaction deinitialization failed")
+			}
+
+			// deinitialize the waf
+			runtime.GC()
+			rv = coraza_free_waf(waf)
+			if rv != 0 {
+				return errors.New("Waf deinitialization failed")
+			}
+			runtime.GC()
+			return nil
+		})
+	}
+	if err := errgrp.Wait(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestParallelTransactions(t *testing.T) {
+	const numParallelTransactions = 30
+	const numTotalTransactions = 1000
+
+	waf := coraza_new_waf()
+	coraza_rules_add(waf, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,log,msg:'test 123',status:403"`), nil)
+	errgrp, _ := errgroup.WithContext(context.Background())
+	sm := semaphore.NewWeighted(numParallelTransactions)
+	for i := 0; i < numTotalTransactions; i++ {
+		errgrp.Go(func() error {
+			// acquire the semaphore
+			if err := sm.Acquire(context.Background(), 1); err != nil {
+				return err
+			}
+			defer sm.Release(1)
+
+			// initialize the transaction
+			runtime.GC()
+			tt := coraza_new_transaction(waf, nil)
+			if tt == 0 {
+				return errors.New("Transaction initialization failed")
+			}
+			runtime.GC()
+
+			// check if the transaction handle is valid
+			_, ok := cgo.Handle(tt).Value().(*TransactionHandle)
+			if !ok {
+				return errors.New("Transaction handle conversion failed")
+			}
+
+			coraza_process_connection(tt, stringToC("127.0.0.1"), 8080, stringToC("127.0.0.1"), 80)
+			coraza_process_request_headers(tt) // change phase to trigger the rule
+			intervention := coraza_intervention(tt)
+			if intervention == nil {
+				return errors.New("Intervention is nil")
+			}
+			if intervention.status != 403 {
+				return errors.New("Intervention status is not 403")
+			}
+			if stringFromC(intervention.action) != "deny" {
+				return errors.New("Intervention action is not deny")
+			}
+
+			// deinitialize the transaction
+			runtime.GC()
+			rv := coraza_free_transaction(tt)
+			if rv != 0 {
+				return errors.New("Transaction deinitialization failed")
+			}
+			runtime.GC()
+			return nil
+		})
+	}
+	if err := errgrp.Wait(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func BenchmarkTransactionCreation(b *testing.B) {

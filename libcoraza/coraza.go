@@ -311,4 +311,9 @@ func stringToC(s string) *C.char {
 	return C.CString(s)
 }
 
+// It should just be C.GoString(c) but we need this to build tests
+func stringFromC(c *C.char) string {
+	return C.GoString(c)
+}
+
 func main() {}
