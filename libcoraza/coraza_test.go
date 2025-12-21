@@ -15,11 +15,15 @@ import (
 )
 
 var waf *coraza.WAF
-var wafPtr uint64
+var wafPtr uintptr
 
 func TestWafInitialization(t *testing.T) {
-	waf2 := coraza_new_waf()
-	wafPtr = uint64(waf2)
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	if waf == 0 {
+		t.Fatal("Waf initialization failed")
+	}
+	wafPtr = uintptr(waf)
 }
 
 func TestWafIsConsistent(t *testing.T) {
@@ -32,7 +36,8 @@ func TestAddRulesToWaf(t *testing.T) {
 }
 
 func TestCoraza_add_get_args(t *testing.T) {
-	waf := coraza_new_waf()
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
 	tt := coraza_new_transaction(waf, nil)
 	coraza_add_get_args(tt, stringToC("aa"), stringToC("bb"))
 	tx := cgo.Handle(tt).Value().(types.Transaction)
@@ -55,7 +60,8 @@ func TestCoraza_add_get_args(t *testing.T) {
 }
 
 func TestTransactionInitialization(t *testing.T) {
-	waf := coraza_new_waf()
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
 	tt := coraza_new_transaction(waf, nil)
 	if tt == 0 {
 		t.Fatal("Transaction initialization failed")
@@ -68,9 +74,26 @@ func TestTransactionInitialization(t *testing.T) {
 	tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
 }
 
+func TestMultipleConfigsAllocatedDeallocated(t *testing.T) {
+	const numConfigs = 1000
+	configs := make([]cgo.Handle, numConfigs)
+	for i := 0; i < numConfigs; i++ {
+		configs[i] = cgo.Handle(coraza_new_waf_config())
+	}
+	// free every other config while performing an operation on the other config
+	for i := 1; i < numConfigs; i += 2 {
+		coraza_new_waf(wafFromCgoHandle(configs[i-1]), nil)
+		coraza_free_waf_config(wafFromCgoHandle(configs[i]))
+	}
+	for i := 0; i < numConfigs; i += 2 {
+		coraza_free_waf_config(wafFromCgoHandle(configs[i]))
+	}
+}
+
 func TestMultipleTransactionsAllocatedDeallocated(t *testing.T) {
 	const numTransactions = 1000
-	waf := coraza_new_waf()
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
 	txes := make([]cgo.Handle, numTransactions)
 	for i := 0; i < numTransactions; i++ {
 		txes[i] = cgo.Handle(coraza_new_transaction(waf, nil))
@@ -78,7 +101,7 @@ func TestMultipleTransactionsAllocatedDeallocated(t *testing.T) {
 	// free every other transaction while performing an operation on the other transaction
 	// if there are any collisions between handles, this will result in a seg fault
 	for i := 1; i < numTransactions; i += 2 {
-		tx := cgo.Handle(txes[i]).Value().(types.Transaction)
+		tx := cgo.Handle(txes[i-1]).Value().(types.Transaction)
 		tx.ProcessConnection("127.0.0.1", 8080, "127.0.0.1", 80)
 		coraza_free_transaction(txFromCgoHandle(txes[i]))
 	}
@@ -91,7 +114,8 @@ func TestMultipleWafsAllocatedDeallocated(t *testing.T) {
 	const numWafs = 1000
 	wafs := make([]cgo.Handle, numWafs)
 	for i := 0; i < numWafs; i++ {
-		wafs[i] = cgo.Handle(coraza_new_waf())
+		config := coraza_new_waf_config()
+		wafs[i] = cgo.Handle(coraza_new_waf(config, nil))
 	}
 	// free every other waf while performing an operation on the other waf
 	// if there are any collisions between handles, this will result in a seg fault
@@ -101,6 +125,52 @@ func TestMultipleWafsAllocatedDeallocated(t *testing.T) {
 	}
 	for i := 0; i < numWafs; i += 2 {
 		coraza_free_waf(wafFromCgoHandle(cgo.Handle(wafs[i])))
+	}
+}
+
+func TestParallelConfigs(t *testing.T) {
+	const numParallelConfigs = 30
+	const numTotalConfigs = 1000
+
+	errgrp, _ := errgroup.WithContext(context.Background())
+	sm := semaphore.NewWeighted(numParallelConfigs)
+	for i := 0; i < numTotalConfigs; i++ {
+		errgrp.Go(func() error {
+			// acquire the semaphore
+			if err := sm.Acquire(context.Background(), 1); err != nil {
+				return err
+			}
+			defer sm.Release(1)
+
+			// initialize the config
+			runtime.GC()
+			config := coraza_new_waf_config()
+			runtime.GC()
+
+			// check if the config handle is valid
+			_, ok := cgo.Handle(config).Value().(*WafConfigHandle)
+			if !ok {
+				return errors.New("Config handle conversion failed")
+			}
+
+			// create a waf
+			waf := coraza_new_waf(config, nil)
+			if waf == 0 {
+				return errors.New("Waf initialization failed")
+			}
+
+			// deinitialize the config
+			runtime.GC()
+			rv := coraza_free_waf_config(config)
+			if rv != 0 {
+				return errors.New("Config deinitialization failed")
+			}
+			runtime.GC()
+			return nil
+		})
+	}
+	if err := errgrp.Wait(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -120,18 +190,19 @@ func TestParallelWafs(t *testing.T) {
 
 			// initialize the waf
 			runtime.GC()
-			waf := coraza_new_waf()
+			config := coraza_new_waf_config()
+			rv := coraza_rules_add(config, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,log,msg:'test 123',status:403"`))
+			if rv != 0 {
+				return errors.New("Rules addition failed")
+			}
+			waf := coraza_new_waf(config, nil)
 			if waf == 0 {
 				return errors.New("Waf initialization failed")
 			}
 			runtime.GC()
-			rv := coraza_rules_add(waf, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,log,msg:'test 123',status:403"`), nil)
-			if rv != 1 {
-				return errors.New("Rules addition failed")
-			}
 
 			// check if the waf handle is valid
-			_, ok := cgo.Handle(waf).Value().(*WafHandle)
+			_, ok := cgo.Handle(waf).Value().(coraza.WAF)
 			if !ok {
 				return errors.New("Waf handle conversion failed")
 			}
@@ -178,8 +249,15 @@ func TestParallelTransactions(t *testing.T) {
 	const numParallelTransactions = 30
 	const numTotalTransactions = 1000
 
-	waf := coraza_new_waf()
-	coraza_rules_add(waf, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,log,msg:'test 123',status:403"`), nil)
+	config := coraza_new_waf_config()
+	rv := coraza_rules_add(config, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,log,msg:'test 123',status:403"`))
+	if rv != 0 {
+		t.Fatal("Rules addition failed")
+	}
+	waf := coraza_new_waf(config, nil)
+	if waf == 0 {
+		t.Fatal("Waf initialization failed")
+	}
 	errgrp, _ := errgroup.WithContext(context.Background())
 	sm := semaphore.NewWeighted(numParallelTransactions)
 	for i := 0; i < numTotalTransactions; i++ {
@@ -233,15 +311,17 @@ func TestParallelTransactions(t *testing.T) {
 }
 
 func BenchmarkTransactionCreation(b *testing.B) {
-	waf := coraza_new_waf()
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
 	for i := 0; i < b.N; i++ {
 		coraza_new_transaction(waf, nil)
 	}
 }
 
 func BenchmarkTransactionProcessing(b *testing.B) {
-	waf := coraza_new_waf()
-	coraza_rules_add(waf, stringToC(`SecRule UNIQUE_ID "" "id:1"`), nil)
+	config := coraza_new_waf_config()
+	coraza_rules_add(config, stringToC(`SecRule UNIQUE_ID "" "id:1"`))
+	waf := coraza_new_waf(config, nil)
 	for i := 0; i < b.N; i++ {
 		txPtr := coraza_new_transaction(waf, nil)
 		tx := cgo.Handle(txPtr).Value().(types.Transaction)
