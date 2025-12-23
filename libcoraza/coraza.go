@@ -19,6 +19,7 @@ typedef struct coraza_intervention_t
 typedef uintptr_t coraza_waf_config_t;
 typedef uintptr_t coraza_waf_t;
 typedef uintptr_t coraza_transaction_t;
+typedef uintptr_t coraza_matched_rule_t;
 
 typedef enum coraza_debug_log_level_t {
 	CORAZA_DEBUG_LOG_LEVEL_TRACE,
@@ -30,11 +31,29 @@ typedef enum coraza_debug_log_level_t {
 
 typedef void (*coraza_debug_log_cb) (void *, coraza_debug_log_level_t, const char *msg, const char *fields);
 
+typedef enum coraza_severity_t {
+	CORAZA_SEVERITY_DEBUG,
+	CORAZA_SEVERITY_INFO,
+	CORAZA_SEVERITY_NOTICE,
+	CORAZA_SEVERITY_WARNING,
+	CORAZA_SEVERITY_ERROR,
+	CORAZA_SEVERITY_CRITICAL,
+	CORAZA_SEVERITY_ALERT,
+	CORAZA_SEVERITY_EMERGENCY,
+} coraza_severity_t;
+
+typedef void (*coraza_error_cb) (void *, coraza_matched_rule_t);
+
+#endif
+
 static void call_debug_log_cb(coraza_debug_log_cb cb, void *ctx, coraza_debug_log_level_t level, const char *msg, const char *fields) {
 	cb(ctx, level, msg, fields);
 }
 
-#endif
+static void call_error_cb(coraza_error_cb cb, void *ctx, coraza_matched_rule_t rule) {
+	cb(ctx, rule);
+}
+
 */
 import "C"
 import (
@@ -105,6 +124,25 @@ func coraza_add_debug_log_callback(c C.coraza_waf_config_t, cb C.coraza_debug_lo
 		defer C.free(unsafe.Pointer(cFields))
 		C.call_debug_log_cb(cb, unsafe.Pointer(userContext), C.coraza_debug_log_level_t(rawLevel), cMsg, cFields)
 	}))
+	return 0
+}
+
+/**
+ * Adds a error callback to a WAF config
+ * @param[in] pointer to valid WAF config
+ * @param[in] pointer to error callback
+ * @param[in] pointer to custom user context passed every time the error callback is called. This must live as long as
+ * while the parent config and its dependent objects are active.
+ * @returns 0 on success, 1 on failure
+ */
+//export coraza_add_error_callback
+func coraza_add_error_callback(c C.coraza_waf_config_t, cb C.coraza_error_cb, userContext *C.void) C.int {
+	configHandle := fromRaw[*WafConfigHandle](c)
+	configHandle.config = configHandle.config.WithErrorCallback(func(rule types.MatchedRule) {
+		ruleHandle := cgo.NewHandle(rule)
+		defer ruleHandle.Delete()
+		C.call_error_cb(cb, unsafe.Pointer(userContext), C.coraza_matched_rule_t(ruleHandle))
+	})
 	return 0
 }
 
@@ -326,6 +364,48 @@ func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int
 func coraza_free_waf(t C.coraza_waf_t) C.int {
 	deleteRaw(t)
 	return 0
+}
+
+/**
+ * Returns the severity of a matched rule.
+ * @param[in] pointer to matched rule
+ * @returns severity of the matched rule
+ */
+//export coraza_matched_rule_get_severity
+func coraza_matched_rule_get_severity(r C.coraza_matched_rule_t) C.coraza_severity_t {
+	matchedRule := fromRaw[types.MatchedRule](r)
+	switch matchedRule.Rule().Severity() {
+	case types.RuleSeverityEmergency:
+		return C.CORAZA_SEVERITY_EMERGENCY
+	case types.RuleSeverityAlert:
+		return C.CORAZA_SEVERITY_ALERT
+	case types.RuleSeverityCritical:
+		return C.CORAZA_SEVERITY_CRITICAL
+	case types.RuleSeverityError:
+		return C.CORAZA_SEVERITY_ERROR
+	case types.RuleSeverityWarning:
+		return C.CORAZA_SEVERITY_WARNING
+	case types.RuleSeverityNotice:
+		return C.CORAZA_SEVERITY_NOTICE
+	case types.RuleSeverityInfo:
+		return C.CORAZA_SEVERITY_INFO
+	case types.RuleSeverityDebug:
+		return C.CORAZA_SEVERITY_DEBUG
+	}
+	// Unknown severity, return the highest severity so user can be aware of the issue
+	return C.CORAZA_SEVERITY_EMERGENCY
+}
+
+/*
+ * Returns the error log of a matched rule. The caller is responsible for freeing the returned string.
+ * @param[in] pointer to matched rule
+ * @returns error log of the matched rule
+ */
+//export coraza_matched_rule_get_error_log
+func coraza_matched_rule_get_error_log(r C.coraza_matched_rule_t) *C.char {
+	rule := fromRaw[types.MatchedRule](r)
+	cMsg := C.CString(rule.ErrorLog())
+	return cMsg
 }
 
 /*

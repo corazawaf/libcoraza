@@ -8,6 +8,11 @@ void logcb(void *context, coraza_debug_log_level_t level, const char *msg, const
 }
 
 
+void errorcb(void *context, coraza_matched_rule_t rule)
+{
+    printf("[%s][severity %d] %s\n", (const char *)context, coraza_matched_rule_get_severity(rule), coraza_matched_rule_get_error_log(rule));
+}
+
 int main()
 {
     coraza_waf_config_t config = coraza_new_waf_config();
@@ -20,6 +25,9 @@ int main()
 
     printf("Attaching log callback\n");
     coraza_add_debug_log_callback(config, logcb, "simple_get");
+
+    printf("Attaching error callback\n");
+    coraza_add_error_callback(config, errorcb, "simple_get");
 
     coraza_waf_t waf = 0;
     coraza_transaction_t tx = 0;

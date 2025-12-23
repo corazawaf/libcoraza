@@ -1,11 +1,13 @@
 Compiling rules...
 Attaching log callback
+Attaching error callback
 Starting...
 0 rules compiled
 Creating transaction...
 Processing connection...
 Processing request line
 Processing phase 1
+[simple_get][severity 7] [client "127.0.0.1"] Coraza: Access denied (phase 1). test 123 [file "_inline_"] [line "1"] [id "1"] [rev ""] [msg "test 123"] [data ""] [severity "emergency"] [ver ""] [maturity "0"] [accuracy "0"] [hostname ""] [uri "/someurl"] [unique_id "simple_get"]
 Processing phase 2
 [simple_get][level 4] Calling ProcessRequestBody but there is a preexisting interruption tx_id="simple_get"
 Processing phase 3
