@@ -2,9 +2,9 @@
 
 #include "coraza/coraza.h"
 
-void logcb(const void *data)
+void logcb(void *context, coraza_debug_log_level_t level, const char *msg, const char *fields)
 {
-    printf("%s\n", (const char *)data);
+    printf("[%s][level %d] %s %s\n", (const char *)context, level, msg, fields);
 }
 
 
@@ -17,6 +17,9 @@ int main()
     }
     printf("Compiling rules...\n");
     coraza_rules_add(config, "SecRule REMOTE_ADDR \"127.0.0.1\" \"id:1,phase:1,deny,log,msg:'test 123',status:403\"");
+
+    printf("Attaching log callback\n");
+    coraza_add_debug_log_callback(config, logcb, "simple_get");
 
     coraza_waf_t waf = 0;
     coraza_transaction_t tx = 0;
@@ -34,12 +37,10 @@ int main()
         printf("Failed to create waf\n");
         return 1;
     }
-    printf("Attaching log callback\n");
-    coraza_set_log_cb(waf, logcb);
 
     printf("%d rules compiled\n", coraza_rules_count(waf));
     printf("Creating transaction...\n");
-    tx = coraza_new_transaction(waf, NULL);
+    tx = coraza_new_transaction_with_id(waf, "simple_get");
     if(tx == 0) {
         printf("Failed to create transaction\n");
         return 1;

@@ -38,7 +38,7 @@ func TestAddRulesToWaf(t *testing.T) {
 func TestCoraza_add_get_args(t *testing.T) {
 	config := coraza_new_waf_config()
 	waf := coraza_new_waf(config, nil)
-	tt := coraza_new_transaction(waf, nil)
+	tt := coraza_new_transaction(waf)
 	coraza_add_get_args(tt, stringToC("aa"), stringToC("bb"))
 	tx := cgo.Handle(tt).Value().(types.Transaction)
 	txi := tx.(plugintypes.TransactionState)
@@ -62,11 +62,11 @@ func TestCoraza_add_get_args(t *testing.T) {
 func TestTransactionInitialization(t *testing.T) {
 	config := coraza_new_waf_config()
 	waf := coraza_new_waf(config, nil)
-	tt := coraza_new_transaction(waf, nil)
+	tt := coraza_new_transaction(waf)
 	if tt == 0 {
 		t.Fatal("Transaction initialization failed")
 	}
-	t2 := coraza_new_transaction(waf, nil)
+	t2 := coraza_new_transaction(waf)
 	if t2 == tt {
 		t.Fatal("Transactions are duplicated")
 	}
@@ -96,7 +96,7 @@ func TestMultipleTransactionsAllocatedDeallocated(t *testing.T) {
 	waf := coraza_new_waf(config, nil)
 	txes := make([]cgo.Handle, numTransactions)
 	for i := 0; i < numTransactions; i++ {
-		txes[i] = cgo.Handle(coraza_new_transaction(waf, nil))
+		txes[i] = cgo.Handle(coraza_new_transaction(waf))
 	}
 	// free every other transaction while performing an operation on the other transaction
 	// if there are any collisions between handles, this will result in a seg fault
@@ -120,7 +120,7 @@ func TestMultipleWafsAllocatedDeallocated(t *testing.T) {
 	// free every other waf while performing an operation on the other waf
 	// if there are any collisions between handles, this will result in a seg fault
 	for i := 1; i < numWafs; i += 2 {
-		coraza_new_transaction(wafFromCgoHandle(cgo.Handle(wafs[i-1])), nil)
+		coraza_new_transaction(wafFromCgoHandle(cgo.Handle(wafs[i-1])))
 		coraza_free_waf(wafFromCgoHandle(cgo.Handle(wafs[i])))
 	}
 	for i := 0; i < numWafs; i += 2 {
@@ -208,7 +208,7 @@ func TestParallelWafs(t *testing.T) {
 			}
 
 			// create a transaction
-			tt := coraza_new_transaction(waf, nil)
+			tt := coraza_new_transaction(waf)
 			if tt == 0 {
 				return errors.New("Transaction initialization failed")
 			}
@@ -270,7 +270,7 @@ func TestParallelTransactions(t *testing.T) {
 
 			// initialize the transaction
 			runtime.GC()
-			tt := coraza_new_transaction(waf, nil)
+			tt := coraza_new_transaction(waf)
 			if tt == 0 {
 				return errors.New("Transaction initialization failed")
 			}
@@ -314,7 +314,7 @@ func BenchmarkTransactionCreation(b *testing.B) {
 	config := coraza_new_waf_config()
 	waf := coraza_new_waf(config, nil)
 	for i := 0; i < b.N; i++ {
-		coraza_new_transaction(waf, nil)
+		coraza_new_transaction(waf)
 	}
 }
 
@@ -323,7 +323,7 @@ func BenchmarkTransactionProcessing(b *testing.B) {
 	coraza_rules_add(config, stringToC(`SecRule UNIQUE_ID "" "id:1"`))
 	waf := coraza_new_waf(config, nil)
 	for i := 0; i < b.N; i++ {
-		txPtr := coraza_new_transaction(waf, nil)
+		txPtr := coraza_new_transaction(waf)
 		tx := cgo.Handle(txPtr).Value().(types.Transaction)
 		tx.ProcessConnection("127.0.0.1", 55555, "127.0.0.1", 80)
 		tx.ProcessURI("https://www.example.com/some?params=123", "GET", "HTTP/1.1")
