@@ -86,6 +86,42 @@ func TestAddRulesToWaf(t *testing.T) {
 	}
 }
 
+func TestAddRulesFromFileToWaf(t *testing.T) {
+	tests := []struct {
+		name         string
+		file         string
+		canCreateWaf bool
+	}{
+		{
+			name:         "test.conf",
+			file:         "testdata/test.conf",
+			canCreateWaf: true,
+		},
+		{
+			name:         "nonexistent.conf",
+			file:         "testdata/nonexistent.conf",
+			canCreateWaf: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			config := coraza_new_waf_config()
+			rv := coraza_rules_add_file(config, stringToC(test.file))
+			if rv != 0 {
+				t.Fatalf("Rules addition failed: %d", rv)
+			}
+
+			er := stringToC("")
+			waf := coraza_new_waf(config, &er)
+			if test.canCreateWaf && (waf == 0 || stringFromC(er) != "") {
+				t.Fatalf("Waf creation failed: %d", waf)
+			} else if !test.canCreateWaf && (waf != 0 || stringFromC(er) == "") {
+				t.Fatalf("Waf creation should have failed: %d", waf)
+			}
+		})
+	}
+}
+
 func TestCoraza_add_get_args(t *testing.T) {
 	config := coraza_new_waf_config()
 	waf := coraza_new_waf(config, nil)
