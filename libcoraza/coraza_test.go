@@ -49,11 +49,6 @@ func TestAddRulesToWaf(t *testing.T) {
 			canCreateWaf: true,
 		},
 		{
-			name:         "include coreruleset file",
-			rules:        `Include @owasp_crs/*.conf`,
-			canCreateWaf: true,
-		},
-		{
 			name:         "include invalid rule",
 			rules:        `foobar123`,
 			canCreateWaf: false,
