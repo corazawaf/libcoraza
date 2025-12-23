@@ -33,6 +33,88 @@ func TestWafIsConsistent(t *testing.T) {
 }
 
 func TestAddRulesToWaf(t *testing.T) {
+	tests := []struct {
+		name         string
+		rules        string
+		canCreateWaf bool
+	}{
+		{
+			name:         "rule",
+			rules:        `SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,log,msg:'test 123',status:403"`,
+			canCreateWaf: true,
+		},
+		{
+			name:         "include local file",
+			rules:        `Include testdata/test.conf`,
+			canCreateWaf: true,
+		},
+		{
+			name:         "include invalid rule",
+			rules:        `foobar123`,
+			canCreateWaf: false,
+		},
+		{
+			name:         "include non-existent file",
+			rules:        `Include testdata/nonexistent.conf`,
+			canCreateWaf: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			config := coraza_new_waf_config()
+			rv := coraza_rules_add(config, stringToC(test.rules))
+			if rv != 0 {
+				t.Fatalf("Rules addition failed: %d", rv)
+			}
+
+			er := stringToC("")
+			waf := coraza_new_waf(config, &er)
+			if test.canCreateWaf && (waf == 0 || stringFromC(er) != "") {
+				t.Fatalf("Waf creation failed: %d", waf)
+			} else if !test.canCreateWaf && (waf != 0 || stringFromC(er) == "") {
+				t.Fatalf("Waf creation should have failed: %d", waf)
+			}
+			if stringFromC(er) != "" {
+				t.Logf("Waf creation error: %s", stringFromC(er))
+			}
+		})
+	}
+}
+
+func TestAddRulesFromFileToWaf(t *testing.T) {
+	tests := []struct {
+		name         string
+		file         string
+		canCreateWaf bool
+	}{
+		{
+			name:         "test.conf",
+			file:         "testdata/test.conf",
+			canCreateWaf: true,
+		},
+		{
+			name:         "nonexistent.conf",
+			file:         "testdata/nonexistent.conf",
+			canCreateWaf: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			config := coraza_new_waf_config()
+			rv := coraza_rules_add_file(config, stringToC(test.file))
+			if rv != 0 {
+				t.Fatalf("Rules addition failed: %d", rv)
+			}
+
+			er := stringToC("")
+			waf := coraza_new_waf(config, &er)
+			if test.canCreateWaf && (waf == 0 || stringFromC(er) != "") {
+				t.Fatalf("Waf creation failed: %d", waf)
+			} else if !test.canCreateWaf && (waf != 0 || stringFromC(er) == "") {
+				t.Fatalf("Waf creation should have failed: %d", waf)
+			}
+		})
+	}
 }
 
 func TestCoraza_add_get_args(t *testing.T) {
