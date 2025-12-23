@@ -22,6 +22,7 @@ typedef uintptr_t coraza_transaction_t;
 typedef uintptr_t coraza_matched_rule_t;
 
 typedef enum coraza_debug_log_level_t {
+	CORAZA_DEBUG_LOG_LEVEL_UNKNOWN,
 	CORAZA_DEBUG_LOG_LEVEL_TRACE,
 	CORAZA_DEBUG_LOG_LEVEL_DEBUG,
 	CORAZA_DEBUG_LOG_LEVEL_INFO,
@@ -32,6 +33,7 @@ typedef enum coraza_debug_log_level_t {
 typedef void (*coraza_debug_log_cb) (void *, coraza_debug_log_level_t, const char *msg, const char *fields);
 
 typedef enum coraza_severity_t {
+	CORAZA_SEVERITY_UNKNOWN,
 	CORAZA_SEVERITY_DEBUG,
 	CORAZA_SEVERITY_INFO,
 	CORAZA_SEVERITY_NOTICE,
@@ -105,7 +107,7 @@ func coraza_rules_add(c C.coraza_waf_config_t, directives *C.char) C.int {
 func coraza_add_debug_log_callback(c C.coraza_waf_config_t, cb C.coraza_debug_log_cb, userContext *C.void) C.int {
 	configHandle := fromRaw[*WafConfigHandle](c)
 	configHandle.config = configHandle.config.WithDebugLogger(newDebugLogger(func(lvl debuglog.Level, message, fields string) {
-		rawLevel := C.CORAZA_DEBUG_LOG_LEVEL_DEBUG
+		rawLevel := C.CORAZA_DEBUG_LOG_LEVEL_UNKNOWN
 		switch lvl {
 		case debuglog.LevelTrace:
 			rawLevel = C.CORAZA_DEBUG_LOG_LEVEL_TRACE
@@ -117,6 +119,8 @@ func coraza_add_debug_log_callback(c C.coraza_waf_config_t, cb C.coraza_debug_lo
 			rawLevel = C.CORAZA_DEBUG_LOG_LEVEL_WARN
 		case debuglog.LevelError:
 			rawLevel = C.CORAZA_DEBUG_LOG_LEVEL_ERROR
+		default:
+			rawLevel = C.CORAZA_DEBUG_LOG_LEVEL_UNKNOWN
 		}
 		cMsg := C.CString(message)
 		cFields := C.CString(fields)
@@ -392,8 +396,7 @@ func coraza_matched_rule_get_severity(r C.coraza_matched_rule_t) C.coraza_severi
 	case types.RuleSeverityDebug:
 		return C.CORAZA_SEVERITY_DEBUG
 	}
-	// Unknown severity, return the highest severity so user can be aware of the issue
-	return C.CORAZA_SEVERITY_EMERGENCY
+	return C.CORAZA_SEVERITY_UNKNOWN
 }
 
 /*
