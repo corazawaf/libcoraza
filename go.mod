@@ -3,6 +3,7 @@ module github.com/corazawaf/libcoraza
 go 1.24.0
 
 require (
+	github.com/corazawaf/coraza-coreruleset/v4 v4.21.0
 	github.com/corazawaf/coraza/v3 v3.3.3
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
 	golang.org/x/sync v0.19.0

@@ -77,7 +77,7 @@ type WafConfigHandle struct {
 //export coraza_new_waf_config
 func coraza_new_waf_config() C.coraza_waf_config_t {
 	return C.coraza_waf_config_t(cgo.NewHandle(&WafConfigHandle{
-		config: coraza.NewWAFConfig(),
+		config: coraza.NewWAFConfig().WithRootFS(rootFS),
 	}))
 }
 
