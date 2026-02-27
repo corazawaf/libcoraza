@@ -117,6 +117,54 @@ func TestAddRulesFromFileToWaf(t *testing.T) {
 	}
 }
 
+func TestRulesCount(t *testing.T) {
+	config := coraza_new_waf_config()
+	w := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	if coraza_rules_count(w) != 0 {
+		t.Fatal("Expected 0 rules for empty WAF")
+	}
+	coraza_free_waf(w)
+
+	config = coraza_new_waf_config()
+	coraza_rules_add(config, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,status:403"`))
+	w = coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	if coraza_rules_count(w) != 1 {
+		t.Fatal("Expected 1 rule addition")
+	}
+	coraza_free_waf(w)
+
+	config = coraza_new_waf_config()
+	coraza_rules_add(config, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,status:403"`))
+	coraza_rules_add(config, stringToC(`SecRule REQUEST_URI "/test" "id:2,phase:1,deny,status:403"`))
+	w = coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	if coraza_rules_count(w) != 2 {
+		t.Fatal("Expected 2 rule additions")
+	}
+	coraza_free_waf(w)
+}
+
+func TestUpdateStatusCode(t *testing.T) {
+	config := coraza_new_waf_config()
+	w := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(w)
+	rv := coraza_update_status_code(tt, 404)
+	if rv != 0 {
+		t.Fatal("coraza_update_status_code failed")
+	}
+	tx := cgo.Handle(tt).Value().(types.Transaction)
+	txi := tx.(plugintypes.TransactionState)
+	status := txi.Variables().ResponseStatus().Get()
+	if status != "404" {
+		t.Fatalf("Expected status 404, got %s", status)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(w)
+}
+
 func TestCoraza_add_get_args(t *testing.T) {
 	config := coraza_new_waf_config()
 	waf := coraza_new_waf(config, nil)
@@ -284,7 +332,7 @@ func TestParallelWafs(t *testing.T) {
 			runtime.GC()
 
 			// check if the waf handle is valid
-			_, ok := cgo.Handle(waf).Value().(coraza.WAF)
+			_, ok := cgo.Handle(waf).Value().(*WafHandle)
 			if !ok {
 				return errors.New("Waf handle conversion failed")
 			}
