@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"runtime"
 	"runtime/cgo"
 	"testing"
 
 	"github.com/corazawaf/coraza/v3"
+	"github.com/corazawaf/coraza/v3/debuglog"
 	"github.com/corazawaf/coraza/v3/experimental/plugins/plugintypes"
 	"github.com/corazawaf/coraza/v3/types"
 	"golang.org/x/sync/errgroup"
@@ -384,4 +388,474 @@ func BenchmarkTransactionProcessing(b *testing.B) {
 		tx.ProcessLogging()
 		tx.Close()
 	}
+}
+
+func TestInterventionNil(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+	if tt == 0 {
+		t.Fatal("Transaction initialization failed")
+	}
+	intervention := coraza_intervention(tt)
+	if intervention != nil {
+		t.Fatal("Expected nil intervention for transaction with no matching rules")
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestNewTransactionWithID(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction_with_id(waf, stringToC("test-tx-id"))
+	if tt == 0 {
+		t.Fatal("Transaction with ID initialization failed")
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestProcessUri(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+	rv := coraza_process_uri(tt, stringToC("/test?foo=bar"), stringToC("GET"), stringToC("HTTP/1.1"))
+	if rv != 0 {
+		t.Fatal("coraza_process_uri failed")
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestAddRequestHeader(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+	rv := coraza_add_request_header(tt, stringToC("Host"), 4, stringToC("localhost"), 9)
+	if rv != 0 {
+		t.Fatal("coraza_add_request_header failed")
+	}
+	tx := cgo.Handle(tt).Value().(types.Transaction)
+	txi := tx.(plugintypes.TransactionState)
+	values := txi.Variables().RequestHeaders().Get("host")
+	if len(values) != 1 || values[0] != "localhost" {
+		t.Fatalf("Expected header value 'localhost', got %v", values)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestProcessRequestBody(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+	rv := coraza_process_request_body(tt)
+	if rv != 0 {
+		t.Fatal("coraza_process_request_body failed")
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestAddResponseHeader(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+	rv := coraza_add_response_header(tt, stringToC("Content-Type"), 12, stringToC("text/html"), 9)
+	if rv != 0 {
+		t.Fatal("coraza_add_response_header failed")
+	}
+	tx := cgo.Handle(tt).Value().(types.Transaction)
+	txi := tx.(plugintypes.TransactionState)
+	values := txi.Variables().ResponseHeaders().Get("content-type")
+	if len(values) != 1 || values[0] != "text/html" {
+		t.Fatalf("Expected response header 'text/html', got %v", values)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestProcessResponseHeaders(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+	rv := coraza_process_response_headers(tt, 200, stringToC("HTTP/1.1"))
+	if rv != 0 {
+		t.Fatal("coraza_process_response_headers failed")
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestProcessResponseBody(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+	rv := coraza_process_response_body(tt)
+	if rv != 0 {
+		t.Fatal("coraza_process_response_body failed")
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestProcessLogging(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+	rv := coraza_process_logging(tt)
+	if rv != 0 {
+		t.Fatal("coraza_process_logging failed")
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestFreeIntervention(t *testing.T) {
+	// Test freeing a nil intervention - should return 1
+	rv := coraza_free_intervention(nil)
+	if rv != 1 {
+		t.Fatalf("coraza_free_intervention(nil) expected 1, got %d", rv)
+	}
+
+	// Test freeing a valid intervention obtained from a disrupted transaction
+	config := coraza_new_waf_config()
+	coraza_rules_add(config, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,status:403"`))
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+	coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80)
+	coraza_process_request_headers(tt)
+	intervention := coraza_intervention(tt)
+	if intervention == nil {
+		t.Fatal("Expected non-nil intervention")
+	}
+	rv = coraza_free_intervention(intervention)
+	if rv != 0 {
+		t.Fatalf("coraza_free_intervention expected 0, got %d", rv)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestRulesMerge(t *testing.T) {
+	config1 := coraza_new_waf_config()
+	waf1 := coraza_new_waf(config1, nil)
+	coraza_free_waf_config(config1)
+
+	config2 := coraza_new_waf_config()
+	waf2 := coraza_new_waf(config2, nil)
+	coraza_free_waf_config(config2)
+
+	rv := coraza_rules_merge(waf1, waf2, nil)
+	if rv != 0 {
+		t.Fatalf("coraza_rules_merge expected 0, got %d", rv)
+	}
+
+	coraza_free_waf(waf1)
+	coraza_free_waf(waf2)
+}
+
+func TestNewDebugLogger(t *testing.T) {
+	l := newDebugLogger(func(lvl debuglog.Level, message, fields string) {})
+	if l == nil {
+		t.Fatal("newDebugLogger returned nil")
+	}
+
+	// Test WithLevel
+	l2 := l.WithLevel(debuglog.LevelInfo)
+	if l2 == nil {
+		t.Fatal("WithLevel returned nil")
+	}
+
+	// Test WithOutput
+	var buf bytes.Buffer
+	l3 := l.WithOutput(&buf)
+	if l3 == nil {
+		t.Fatal("WithOutput returned nil")
+	}
+}
+
+func TestRulesAddFile(t *testing.T) {
+	f, err := os.CreateTemp("", "coraza-rules-*.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+	if _, err := f.WriteString(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,status:403"`); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	config := coraza_new_waf_config()
+	rv := coraza_rules_add_file(config, stringToC(f.Name()))
+	if rv != 0 {
+		t.Fatalf("coraza_rules_add_file expected 0, got %d", rv)
+	}
+	waf := coraza_new_waf(config, nil)
+	if waf == 0 {
+		t.Fatal("WAF creation failed after adding rules from file")
+	}
+	if coraza_rules_count(waf) != 1 {
+		t.Fatalf("Expected 1 rule from file, got %d", coraza_rules_count(waf))
+	}
+	coraza_free_waf(waf)
+	coraza_free_waf_config(config)
+}
+
+func TestNewWafWithError(t *testing.T) {
+	config := coraza_new_waf_config()
+	coraza_rules_add_file(config, stringToC("/nonexistent/path/to/rules.conf"))
+	waf, errOccurred := newWafCheckError(config)
+	if !errOccurred {
+		t.Fatal("Expected WAF creation to fail with non-existent rules file")
+	}
+	if waf != 0 {
+		t.Fatal("Expected zero WAF handle on error")
+	}
+	coraza_free_waf_config(config)
+}
+
+func TestAppendRequestBody(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+
+	// Empty slice should be a no-op
+	rv := appendRequestBody(tt, []byte{})
+	if rv != 0 {
+		t.Fatalf("appendRequestBody with empty slice expected 0, got %d", rv)
+	}
+
+	// Non-empty slice
+	rv = appendRequestBody(tt, []byte("test request body content"))
+	if rv != 0 {
+		t.Fatalf("appendRequestBody expected 0, got %d", rv)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestAppendResponseBody(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+
+	rv := appendResponseBody(tt, []byte("test response body content"))
+	if rv != 0 {
+		t.Fatalf("appendResponseBody expected 0, got %d", rv)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestRequestBodyFromFile(t *testing.T) {
+	f, err := os.CreateTemp("", "coraza-body-*.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+	if _, err := f.WriteString("test request body from file"); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+
+	rv := coraza_request_body_from_file(tt, stringToC(f.Name()))
+	if rv != 0 {
+		t.Fatalf("coraza_request_body_from_file expected 0, got %d", rv)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestRequestBodyFromFileError(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+
+	rv := coraza_request_body_from_file(tt, stringToC("/nonexistent/body/file.txt"))
+	if rv != 1 {
+		t.Fatalf("coraza_request_body_from_file expected 1 (error), got %d", rv)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+// FuzzProcessTransaction exercises the full transaction processing pipeline with
+// fuzzed inputs covering remote address, URI, HTTP method, protocol, and headers.
+func FuzzProcessTransaction(f *testing.F) {
+	f.Add("127.0.0.1", "/index.html", "GET", "HTTP/1.1", "Host", "localhost")
+	f.Add("192.168.1.1", "/admin", "POST", "HTTP/2.0", "Content-Type", "application/json")
+	f.Add("10.0.0.1", "/search?q=test", "GET", "HTTP/1.1", "User-Agent", "Mozilla/5.0")
+	f.Add("", "/", "", "", "", "")
+	f.Add("::1", "/path?a=b&c=d", "PUT", "HTTP/1.0", "X-Custom", "value")
+
+	config := coraza_new_waf_config()
+	coraza_rules_add(config, stringToC(`SecRule REQUEST_URI "@contains admin" "id:100,phase:1,deny,status:403"`))
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+
+	f.Fuzz(func(t *testing.T, remoteAddr, uri, method, proto, headerName, headerValue string) {
+		tt := coraza_new_transaction(waf)
+		if tt == 0 {
+			return
+		}
+
+		coraza_process_connection(tt, stringToC(remoteAddr), 80, stringToC(""), 80)
+		coraza_process_uri(tt, stringToC(uri), stringToC(method), stringToC(proto))
+		addRequestHeaderStr(tt, headerName, headerValue)
+		coraza_process_request_headers(tt)
+		appendRequestBody(tt, []byte(uri))
+		coraza_process_request_body(tt)
+		coraza_process_response_headers(tt, 200, stringToC("HTTP/1.1"))
+		appendResponseBody(tt, []byte(headerValue))
+		coraza_process_response_body(tt)
+		coraza_process_logging(tt)
+		coraza_intervention(tt)
+		coraza_free_transaction(tt)
+	})
+}
+
+func TestNewWafSuccess(t *testing.T) {
+	config := coraza_new_waf_config()
+	waf, errOccurred := newWafCheckError(config)
+	if errOccurred {
+		t.Fatal("Expected WAF creation to succeed with empty config")
+	}
+	if waf == 0 {
+		t.Fatal("Expected valid WAF handle")
+	}
+	coraza_free_waf(waf)
+	coraza_free_waf_config(config)
+}
+
+func TestMatchedRuleFunctions(t *testing.T) {
+	config := coraza_new_waf_config()
+	// Use an explicit severity so we can verify the mapping
+	coraza_rules_add(config, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,log,msg:'test',severity:CRITICAL,status:403"`))
+	getHandle, releaseHandle := captureMatchedRule(config)
+	defer releaseHandle()
+
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+
+	tt := coraza_new_transaction(waf)
+	coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80)
+	coraza_process_request_headers(tt) // triggers the deny rule
+
+	handle := getHandle()
+	if handle == 0 {
+		t.Fatal("Expected matched rule handle after rule match")
+	}
+
+	// Test coraza_matched_rule_get_severity - CRITICAL maps to enum value 6
+	severity := coraza_matched_rule_get_severity(handle)
+	if severityToInt(severity) != 6 { // CORAZA_SEVERITY_CRITICAL
+		t.Fatalf("Expected CRITICAL severity (6), got %d", severityToInt(severity))
+	}
+
+	// Test coraza_matched_rule_get_error_log - should return a non-empty log string
+	errorLog := coraza_matched_rule_get_error_log(handle)
+	logStr := stringFromC(errorLog)
+	freeString(errorLog)
+	if logStr == "" {
+		t.Fatal("Expected non-empty error log from matched rule")
+	}
+
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+// TestMatchedRuleSeverities exercises coraza_matched_rule_get_severity across
+// multiple severity levels to increase branch coverage.
+func TestMatchedRuleSeverities(t *testing.T) {
+	// Maps severity name to expected CORAZA_SEVERITY_* enum value.
+	// Enum order: UNKNOWN=0, DEBUG=1, INFO=2, NOTICE=3, WARNING=4, ERROR=5, CRITICAL=6, ALERT=7, EMERGENCY=8
+	cases := []struct {
+		name     string
+		expected int
+	}{
+		{"EMERGENCY", 8},
+		{"ALERT", 7},
+		{"CRITICAL", 6},
+		{"ERROR", 5},
+		{"WARNING", 4},
+		{"NOTICE", 3},
+		{"INFO", 2},
+		{"DEBUG", 1},
+	}
+	for i, tc := range cases {
+		tc := tc
+		i := i
+		t.Run(tc.name, func(t *testing.T) {
+			config := coraza_new_waf_config()
+			rule := fmt.Sprintf(
+				`SecRule REMOTE_ADDR "127.0.0.1" "id:%d,phase:1,deny,log,severity:%s,status:403"`,
+				100+i, tc.name,
+			)
+			coraza_rules_add(config, stringToC(rule))
+			getHandle, releaseHandle := captureMatchedRule(config)
+			defer releaseHandle()
+
+			waf := coraza_new_waf(config, nil)
+			coraza_free_waf_config(config)
+
+			tt := coraza_new_transaction(waf)
+			coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80)
+			coraza_process_request_headers(tt)
+
+			handle := getHandle()
+			if handle == 0 {
+				t.Fatalf("Expected matched rule handle for severity %s", tc.name)
+			}
+			severity := coraza_matched_rule_get_severity(handle)
+			if severityToInt(severity) != tc.expected {
+				t.Errorf("Severity %s: expected %d, got %d", tc.name, tc.expected, severityToInt(severity))
+			}
+
+			coraza_free_transaction(tt)
+			coraza_free_waf(waf)
+		})
+	}
+}
+
+// TestCaptureMatchedRuleNoMatch exercises the no-match path of captureMatchedRule
+// where the rule does not trigger (no matching request).
+func TestCaptureMatchedRuleNoMatch(t *testing.T) {
+	config := coraza_new_waf_config()
+	coraza_rules_add(config, stringToC(`SecRule REMOTE_ADDR "192.168.99.99" "id:200,phase:1,deny,log,status:403"`))
+	getHandle, releaseHandle := captureMatchedRule(config)
+	defer releaseHandle()
+
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+
+	tt := coraza_new_transaction(waf)
+	coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80) // doesn't match 192.168.99.99
+	coraza_process_request_headers(tt)
+
+	handle := getHandle()
+	if handle != 0 {
+		t.Fatal("Expected zero handle when no rule matched")
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
 }
