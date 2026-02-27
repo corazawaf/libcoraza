@@ -1,3 +1,30 @@
+# Changelog
+
+## 1.0.0 (2026-02-27)
+
+
+### Features
+
+* add  coraza_add_get_args to expose tx.AddGetRequestArgument ([#34](https://github.com/corazawaf/libcoraza/issues/34)) ([994164a](https://github.com/corazawaf/libcoraza/commit/994164a69585e9d94c6c22a7fb4b61493b4b04f2))
+* add handle types for WAF and Transaction types ([3f88f9d](https://github.com/corazawaf/libcoraza/commit/3f88f9d230544e1bbdf39444efb3ab4b47f70a9c))
+* **ci:** update doxy build ([0e98dd5](https://github.com/corazawaf/libcoraza/commit/0e98dd5104dfd21747f08c1add03b8273097035b))
+* **ci:** update doxy build ([76e78e9](https://github.com/corazawaf/libcoraza/commit/76e78e984901de7006e0945e26757ec969e08888))
+* implement coraza_rules_count and coraza_update_status_code ([a7c41ab](https://github.com/corazawaf/libcoraza/commit/a7c41ab3248c373cc4e9f334230635040c86f707))
+* implement registering error callbacks ([7d19b8d](https://github.com/corazawaf/libcoraza/commit/7d19b8d6f5f0741e79cf10b4e6ce743fa0207122))
+* implement waf config type ([c0dd712](https://github.com/corazawaf/libcoraza/commit/c0dd712bf8444b1b6edb945d47e6e4cd5deb9dfc))
+* **libcoraza:** rename directories and clean utils ([1f20d3e](https://github.com/corazawaf/libcoraza/commit/1f20d3ed5894a883dc9abc3e3c53c1e8821cdd26))
+* support debugger callbacks ([5882ac3](https://github.com/corazawaf/libcoraza/commit/5882ac3a9dbf651ca98345640122e731709db533))
+
+
+### Bug Fixes
+
+* **ci:** do not install test bin ([4662aeb](https://github.com/corazawaf/libcoraza/commit/4662aeb429a83ca305d04e4104094afed2e5885d))
+* **ci:** include all dep ([5e3d3ff](https://github.com/corazawaf/libcoraza/commit/5e3d3ff265c4c4c7d6c176f033bcc17e1111ab46))
+* naming for osx and tests ([0dea8e7](https://github.com/corazawaf/libcoraza/commit/0dea8e7cf6235c213cd002db4e405e6e0c56b338))
+* remove test from install ([fe0e2dd](https://github.com/corazawaf/libcoraza/commit/fe0e2dd04037de9192fd699914710146db5df1c6))
+* update test and files to use coraza dir ([246754f](https://github.com/corazawaf/libcoraza/commit/246754f423e67c03f53cb7952ca2177da91b43ac))
+* update test and files to use coraza dir ([e4be238](https://github.com/corazawaf/libcoraza/commit/e4be23882ee22b69779fff16e4eadcda58fff195))
+
 ### v0.1 - YYYY-MM-dd
 
 * Added autotools mechanism
