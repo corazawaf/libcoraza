@@ -1,0 +1,5 @@
+### v0.1 - YYYY-MM-dd
+
+* Added autotools mechanism
+    @fzipi, @airween
+* Initial release
