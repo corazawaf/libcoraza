@@ -468,7 +468,7 @@ func deleteRaw[U constraints.Unsigned](raw U) {
 }
 
 // appendRequestBody is an internal helper that calls coraza_append_request_body with a Go byte slice.
-// appendRequestBody is an internal helper that calls coraza_append_request_body with a Go byte slice.
+
 // An empty slice is treated as a no-op (C functions must not receive a nil data pointer with length > 0).
 func appendRequestBody(t C.coraza_transaction_t, data []byte) C.int {
 	if len(data) == 0 {

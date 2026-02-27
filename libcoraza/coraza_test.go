@@ -712,6 +712,9 @@ func FuzzProcessTransaction(f *testing.F) {
 	coraza_rules_add(config, stringToC(`SecRule REQUEST_URI "@contains admin" "id:100,phase:1,deny,status:403"`))
 	waf := coraza_new_waf(config, nil)
 	coraza_free_waf_config(config)
+	f.Cleanup(func() {
+		coraza_free_waf(waf)
+	})
 
 	f.Fuzz(func(t *testing.T, remoteAddr, uri, method, proto, headerName, headerValue string) {
 		tt := coraza_new_transaction(waf)
@@ -729,7 +732,10 @@ func FuzzProcessTransaction(f *testing.F) {
 		appendResponseBody(tt, []byte(headerValue))
 		coraza_process_response_body(tt)
 		coraza_process_logging(tt)
-		coraza_intervention(tt)
+		intervention := coraza_intervention(tt)
+		if intervention != 0 {
+			coraza_free_intervention(intervention)
+		}
 		coraza_free_transaction(tt)
 	})
 }
