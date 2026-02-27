@@ -3,12 +3,10 @@ module github.com/corazawaf/libcoraza
 go 1.24.0
 
 require (
-	github.com/corazawaf/coraza/v3 v3.3.3
+	github.com/corazawaf/coraza/v3 v3.3.4-0.20260227032550-ea24496c0343
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
 	golang.org/x/sync v0.19.0
 )
-
-replace github.com/corazawaf/coraza/v3 => github.com/ppomes/coraza/v3 v3.3.4-0.20260226222459-e8f1ba1aba90
 
 require (
 	github.com/corazawaf/libinjection-go v0.2.2 // indirect

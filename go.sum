@@ -1,5 +1,7 @@
 github.com/corazawaf/coraza-coreruleset v0.0.0-20240226094324-415b1017abdc h1:OlJhrgI3I+FLUCTI3JJW8MoqyM78WbqJjecqMnqG+wc=
 github.com/corazawaf/coraza-coreruleset v0.0.0-20240226094324-415b1017abdc/go.mod h1:7rsocqNDkTCira5T0M7buoKR2ehh7YZiPkzxRuAgvVU=
+github.com/corazawaf/coraza/v3 v3.3.4-0.20260227032550-ea24496c0343 h1:j4GKmn4tfPbbLcmy6N4YPV8wBTjcL0XHYTQowUGUV9c=
+github.com/corazawaf/coraza/v3 v3.3.4-0.20260227032550-ea24496c0343/go.mod h1:miCp6PNuDeoBo4akzkwWyEwkAV+Olfb4zS+372jZK1w=
 github.com/corazawaf/libinjection-go v0.2.2 h1:Chzodvb6+NXh6wew5/yhD0Ggioif9ACrQGR4qjTCs1g=
 github.com/corazawaf/libinjection-go v0.2.2/go.mod h1:OP4TM7xdJ2skyXqNX1AN1wN5nNZEmJNuWbNPOItn7aw=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
@@ -32,8 +34,6 @@ github.com/petar-dambovaliev/aho-corasick v0.0.0-20250424160509-463d218d4745 h1:
 github.com/petar-dambovaliev/aho-corasick v0.0.0-20250424160509-463d218d4745/go.mod h1:EHPiTAKtiFmrMldLUNswFwfZ2eJIYBHktdaUTZxYWRw=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/ppomes/coraza/v3 v3.3.4-0.20260226222459-e8f1ba1aba90 h1:3ow3YMgA4b5dw5+y4/TR+OKM4KJWXAg3KxODi/aAhus=
-github.com/ppomes/coraza/v3 v3.3.4-0.20260226222459-e8f1ba1aba90/go.mod h1:miCp6PNuDeoBo4akzkwWyEwkAV+Olfb4zS+372jZK1w=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/tidwall/gjson v1.18.0 h1:FIDeeyB800efLX89e5a8Y0BNH+LOngJyGrIWxG2FKQY=
