@@ -10,6 +10,9 @@ docs/
 .deps/
 Makefile
 Makefile.in
+# Track the example Makefiles explicitly
+!examples/python/Makefile
+!examples/java/Makefile
 autom4te.cache/
 aclocal.m4
 ar-lib
