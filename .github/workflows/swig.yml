@@ -38,14 +38,11 @@ jobs:
 
       - name: Generate and compile Python SWIG wrapper
         run: |
-          swig -python -outdir examples/python/ -o coraza_wrap_python.c coraza.i
-          gcc -shared -fPIC -o examples/python/_coraza.so coraza_wrap_python.c \
-            -I. $(python3-config --includes) -L. -lcoraza \
-            -Wno-discarded-qualifiers
+          make -C examples/python
 
       - name: Run Python example
         run: |
-          LD_LIBRARY_PATH=. python3 examples/python/simple_get.py
+          make -C examples/python run
 
   swig-java:
     name: Java SWIG wrapper (${{ matrix.go-version }})
@@ -77,22 +74,8 @@ jobs:
 
       - name: Generate and compile Java SWIG wrapper
         run: |
-          mkdir -p examples/java/gen
-          swig -java -outdir examples/java/gen/ -o coraza_wrap_java.c coraza.i
-          gcc -shared -fPIC -o libcoraza_jni.so coraza_wrap_java.c \
-            -I. -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux \
-            -L. -lcoraza \
-            -Wno-discarded-qualifiers
-
-      - name: Compile Java example
-        run: |
-          javac -d examples/java/gen/ \
-            examples/java/gen/*.java \
-            examples/java/SimpleGet.java
+          make -C examples/java
 
       - name: Run Java example
         run: |
-          LD_LIBRARY_PATH=. java \
-            -cp examples/java/gen/ \
-            -Djava.library.path=. \
-            SimpleGet
+          make -C examples/java run
