@@ -722,18 +722,18 @@ func FuzzProcessTransaction(f *testing.F) {
 			return
 		}
 
-		coraza_process_connection(tt, stringToC(remoteAddr), 80, stringToC(""), 80)
-		coraza_process_uri(tt, stringToC(uri), stringToC(method), stringToC(proto))
+		processConnectionStr(tt, remoteAddr, 80, "", 80)
+		processUriStr(tt, uri, method, proto)
 		addRequestHeaderStr(tt, headerName, headerValue)
 		coraza_process_request_headers(tt)
 		appendRequestBody(tt, []byte(uri))
 		coraza_process_request_body(tt)
-		coraza_process_response_headers(tt, 200, stringToC("HTTP/1.1"))
+		processResponseHeadersStr(tt, 200, "HTTP/1.1")
 		appendResponseBody(tt, []byte(headerValue))
 		coraza_process_response_body(tt)
 		coraza_process_logging(tt)
 		intervention := coraza_intervention(tt)
-		if intervention != 0 {
+		if intervention != nil {
 			coraza_free_intervention(intervention)
 		}
 		coraza_free_transaction(tt)

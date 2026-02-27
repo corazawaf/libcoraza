@@ -468,7 +468,6 @@ func deleteRaw[U constraints.Unsigned](raw U) {
 }
 
 // appendRequestBody is an internal helper that calls coraza_append_request_body with a Go byte slice.
-
 // An empty slice is treated as a no-op (C functions must not receive a nil data pointer with length > 0).
 func appendRequestBody(t C.coraza_transaction_t, data []byte) C.int {
 	if len(data) == 0 {
@@ -493,6 +492,36 @@ func addRequestHeaderStr(t C.coraza_transaction_t, name, value string) C.int {
 	defer C.free(unsafe.Pointer(cName))
 	defer C.free(unsafe.Pointer(cValue))
 	return coraza_add_request_header(t, cName, C.int(len(name)), cValue, C.int(len(value)))
+}
+
+// processConnectionStr is an internal helper that calls coraza_process_connection with Go strings,
+// freeing the allocated C strings before returning.
+func processConnectionStr(t C.coraza_transaction_t, sourceAddress string, clientPort int, serverHost string, serverPort int) C.int {
+	cSrc := C.CString(sourceAddress)
+	cSrv := C.CString(serverHost)
+	defer C.free(unsafe.Pointer(cSrc))
+	defer C.free(unsafe.Pointer(cSrv))
+	return coraza_process_connection(t, cSrc, C.int(clientPort), cSrv, C.int(serverPort))
+}
+
+// processUriStr is an internal helper that calls coraza_process_uri with Go strings,
+// freeing the allocated C strings before returning.
+func processUriStr(t C.coraza_transaction_t, uri, method, proto string) C.int {
+	cUri := C.CString(uri)
+	cMethod := C.CString(method)
+	cProto := C.CString(proto)
+	defer C.free(unsafe.Pointer(cUri))
+	defer C.free(unsafe.Pointer(cMethod))
+	defer C.free(unsafe.Pointer(cProto))
+	return coraza_process_uri(t, cUri, cMethod, cProto)
+}
+
+// processResponseHeadersStr is an internal helper that calls coraza_process_response_headers
+// with a Go string, freeing the allocated C string before returning.
+func processResponseHeadersStr(t C.coraza_transaction_t, status int, proto string) C.int {
+	cProto := C.CString(proto)
+	defer C.free(unsafe.Pointer(cProto))
+	return coraza_process_response_headers(t, C.int(status), cProto)
 }
 
 // newWafCheckError calls coraza_new_waf and returns (waf, true) when creation fails,
