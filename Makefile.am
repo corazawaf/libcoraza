@@ -30,7 +30,7 @@ install-data-local: all check
 	@INSTALL@ libcoraza.$(SHARED_EXT) $(DESTDIR)@prefix@/lib/
 	@INSTALL@ coraza/coraza.h $(DESTDIR)@prefix@/include/coraza/coraza.h
 
-.PHONY: docs
+.PHONY: docs swig
 docs:
 # build C header doxygen
 	@doxygen ./Doxyfile
@@ -56,7 +56,6 @@ if HAVE_SWIG
 # Default target language for SWIG bindings (override with SWIG_LANG=<lang>)
 SWIG_LANG ?= python
 
-.PHONY: swig
 swig: coraza/coraza.h
 	$(SWIG) -$(SWIG_LANG) -o coraza_wrap.c $(srcdir)/coraza.i
 endif
