@@ -32,7 +32,12 @@
     if (*$1) {
         char *_swig_err_msg = *$1;
         *$1 = NULL;
+#ifdef SWIGJAVA
+        SWIG_JavaThrowException(jenv, SWIG_JavaRuntimeException, _swig_err_msg);
+        return $null;
+#else
         SWIG_exception_fail(SWIG_RuntimeError, _swig_err_msg);
+#endif
     }
 }
 
@@ -42,6 +47,52 @@
  * to take ownership so the target language runtime frees it automatically.
  */
 %newobject coraza_matched_rule_get_error_log;
+
+/*
+ * Byte-buffer typemap: collapses (const unsigned char *data, int length)
+ * into a single native bytes/array argument in the target language.
+ */
+#ifdef SWIGPYTHON
+%typemap(in) (const unsigned char *data, int length) {
+    if (!PyBytes_Check($input) && !PyByteArray_Check($input)) {
+        PyErr_SetString(PyExc_TypeError, "Expected bytes or bytearray");
+        SWIG_fail;
+    }
+    if (PyBytes_Check($input)) {
+        $1 = (unsigned char *)PyBytes_AS_STRING($input);
+        $2 = (int)PyBytes_GET_SIZE($input);
+    } else {
+        $1 = (unsigned char *)PyByteArray_AS_STRING($input);
+        $2 = (int)PyByteArray_GET_SIZE($input);
+    }
+}
+#endif
+
+#ifdef SWIGJAVA
+/*
+ * Java: load the JNI shared library automatically when the module is
+ * first referenced.  The library is expected to be named libcoraza_jni.so
+ * (Linux / macOS) or coraza_jni.dll (Windows).
+ */
+%pragma(java) jniclasscode=%{
+  static {
+    System.loadLibrary("coraza_jni");
+  }
+%}
+
+/* Map (const unsigned char *data, int length) → byte[] in Java. */
+%typemap(jni)    (const unsigned char *data, int length) "jbyteArray"
+%typemap(jtype)  (const unsigned char *data, int length) "byte[]"
+%typemap(jstype) (const unsigned char *data, int length) "byte[]"
+%typemap(javain) (const unsigned char *data, int length) "$javainput"
+%typemap(in)     (const unsigned char *data, int length) {
+    $1 = (unsigned char *)JCALL2(GetByteArrayElements, jenv, $input, NULL);
+    $2 = (int)JCALL1(GetArrayLength, jenv, $input);
+}
+%typemap(argout) (const unsigned char *data, int length) {
+    JCALL3(ReleaseByteArrayElements, jenv, $input, (jbyte *)$1, JNI_ABORT);
+}
+#endif
 
 /*
  * Type definitions

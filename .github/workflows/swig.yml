@@ -1,0 +1,98 @@
+name: Test SWIG wrappers
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  swig-python:
+    name: Python SWIG wrapper (${{ matrix.go-version }})
+    strategy:
+      matrix:
+        go-version: [1.24.x, 1.25.x]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y swig python3-dev
+
+      - name: Build libcoraza
+        run: |
+          ./build.sh
+          ./configure
+          make V=1
+
+      - name: Generate and compile Python SWIG wrapper
+        run: |
+          swig -python -outdir examples/python/ -o coraza_wrap_python.c coraza.i
+          gcc -shared -fPIC -o examples/python/_coraza.so coraza_wrap_python.c \
+            -I. $(python3-config --includes) -L. -lcoraza \
+            -Wno-discarded-qualifiers
+
+      - name: Run Python example
+        run: |
+          LD_LIBRARY_PATH=. python3 examples/python/simple_get.py
+
+  swig-java:
+    name: Java SWIG wrapper (${{ matrix.go-version }})
+    strategy:
+      matrix:
+        go-version: [1.24.x, 1.25.x]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y swig default-jdk
+
+      - name: Build libcoraza
+        run: |
+          ./build.sh
+          ./configure
+          make V=1
+
+      - name: Generate and compile Java SWIG wrapper
+        run: |
+          mkdir -p examples/java/gen
+          swig -java -outdir examples/java/gen/ -o coraza_wrap_java.c coraza.i
+          gcc -shared -fPIC -o libcoraza_jni.so coraza_wrap_java.c \
+            -I. -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux \
+            -L. -lcoraza \
+            -Wno-discarded-qualifiers
+
+      - name: Compile Java example
+        run: |
+          javac -d examples/java/gen/ \
+            examples/java/gen/*.java \
+            examples/java/SimpleGet.java
+
+      - name: Run Java example
+        run: |
+          LD_LIBRARY_PATH=. java \
+            -cp examples/java/gen/ \
+            -Djava.library.path=. \
+            SimpleGet

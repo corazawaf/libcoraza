@@ -55,7 +55,10 @@ check: tests/simple_get
 if HAVE_SWIG
 # Default target language for SWIG bindings (override with SWIG_LANG=<lang>)
 SWIG_LANG ?= python
+# Output directory for generated language files (override with SWIG_OUTDIR=<dir>)
+SWIG_OUTDIR ?= .
 
 swig: coraza/coraza.h
-	$(SWIG) -$(SWIG_LANG) -o coraza_wrap.c $(srcdir)/coraza.i
+	@mkdir -p $(SWIG_OUTDIR)
+	$(SWIG) -$(SWIG_LANG) -outdir $(SWIG_OUTDIR) -o coraza_wrap.c $(srcdir)/coraza.i
 endif
