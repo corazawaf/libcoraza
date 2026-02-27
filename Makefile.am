@@ -51,3 +51,12 @@ tests_simple_get_LDADD = ./libcoraza.a
 check: tests/simple_get
 	go test -race ./...
 	cd tests && ./check_result.sh simple_get
+
+if HAVE_SWIG
+# Default target language for SWIG bindings (override with SWIG_LANG=<lang>)
+SWIG_LANG ?= python
+
+.PHONY: swig
+swig: coraza/coraza.h
+	$(SWIG) -$(SWIG_LANG) -o coraza_wrap.c $(srcdir)/coraza.i
+endif

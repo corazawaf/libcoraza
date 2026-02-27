@@ -34,3 +34,5 @@ _obj/
 .libs/
 Doxyfile
 .dirstamp
+coraza_wrap.c
+coraza.py
