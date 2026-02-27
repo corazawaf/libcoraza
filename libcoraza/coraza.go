@@ -62,16 +62,25 @@ import (
 	"io"
 	"os"
 	"runtime/cgo"
+	"strconv"
 	"unsafe"
 
 	"github.com/corazawaf/coraza/v3"
 	"github.com/corazawaf/coraza/v3/debuglog"
+	"github.com/corazawaf/coraza/v3/experimental"
+	"github.com/corazawaf/coraza/v3/experimental/plugins/plugintypes"
 	"github.com/corazawaf/coraza/v3/types"
 	"golang.org/x/exp/constraints"
 )
 
 type WafConfigHandle struct {
-	config coraza.WAFConfig
+	config     coraza.WAFConfig
+	rulesAdded int
+}
+
+type WafHandle struct {
+	waf        coraza.WAF
+	rulesCount int
 }
 
 //export coraza_new_waf_config
@@ -85,6 +94,7 @@ func coraza_new_waf_config() C.coraza_waf_config_t {
 func coraza_rules_add_file(c C.coraza_waf_config_t, file *C.char) C.int {
 	configHandle := fromRaw[*WafConfigHandle](c)
 	configHandle.config = configHandle.config.WithDirectivesFromFile(C.GoString(file))
+	configHandle.rulesAdded++
 	return 0
 }
 
@@ -92,6 +102,7 @@ func coraza_rules_add_file(c C.coraza_waf_config_t, file *C.char) C.int {
 func coraza_rules_add(c C.coraza_waf_config_t, directives *C.char) C.int {
 	configHandle := fromRaw[*WafConfigHandle](c)
 	configHandle.config = configHandle.config.WithDirectives(C.GoString(directives))
+	configHandle.rulesAdded++
 	return 0
 }
 
@@ -168,7 +179,10 @@ func coraza_new_waf(config C.coraza_waf_config_t, er **C.char) C.coraza_waf_t {
 		*er = C.CString(err.Error())
 		return 0
 	}
-	return C.coraza_waf_t(cgo.NewHandle(waf))
+	return C.coraza_waf_t(cgo.NewHandle(&WafHandle{
+		waf:        waf,
+		rulesCount: configHandle.rulesAdded,
+	}))
 }
 
 /**
@@ -178,15 +192,15 @@ func coraza_new_waf(config C.coraza_waf_config_t, er **C.char) C.coraza_waf_t {
  */
 //export coraza_new_transaction
 func coraza_new_transaction(w C.coraza_waf_t) C.coraza_transaction_t {
-	waf := fromRaw[coraza.WAF](w)
-	tx := waf.NewTransaction()
+	handle := fromRaw[*WafHandle](w)
+	tx := handle.waf.NewTransaction()
 	return C.coraza_transaction_t(cgo.NewHandle(tx))
 }
 
 //export coraza_new_transaction_with_id
 func coraza_new_transaction_with_id(w C.coraza_waf_t, id *C.char) C.coraza_transaction_t {
-	waf := fromRaw[coraza.WAF](w)
-	tx := waf.NewTransactionWithID(C.GoString(id))
+	handle := fromRaw[*WafHandle](w)
+	tx := handle.waf.NewTransactionWithID(C.GoString(id))
 	return C.coraza_transaction_t(cgo.NewHandle(tx))
 }
 
@@ -224,9 +238,16 @@ func coraza_process_request_body(t C.coraza_transaction_t) C.int {
 
 //export coraza_update_status_code
 func coraza_update_status_code(t C.coraza_transaction_t, code C.int) C.int {
-	//tx := valueFromRawHandle[types.Transaction](t)
-	//c := strconv.Itoa(int(code))
-	//tx.Variables().ResponseStatus.Set(c)
+	tx := fromRaw[types.Transaction](t)
+	txi, ok := tx.(plugintypes.TransactionState)
+	if !ok {
+		return 1
+	}
+	s, ok := txi.Variables().ResponseStatus().(interface{ Set(string) })
+	if !ok {
+		return 1
+	}
+	s.Set(strconv.Itoa(int(code)))
 	return 0
 }
 
@@ -311,7 +332,12 @@ func coraza_process_response_headers(t C.coraza_transaction_t, status C.int, pro
 
 //export coraza_rules_count
 func coraza_rules_count(w C.coraza_waf_t) C.int {
-	return 0
+	handle := fromRaw[*WafHandle](w)
+	rules, ok := handle.waf.(experimental.WAFWithRules)
+	if !ok {
+		return C.int(handle.rulesCount)
+	}
+	return C.int(rules.RulesCount())
 }
 
 //export coraza_free_transaction
