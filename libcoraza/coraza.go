@@ -467,4 +467,113 @@ func deleteRaw[U constraints.Unsigned](raw U) {
 	cgo.Handle(raw).Delete()
 }
 
+// appendRequestBody is an internal helper that calls coraza_append_request_body with a Go byte slice.
+// An empty slice is treated as a no-op (C functions must not receive a nil data pointer with length > 0).
+func appendRequestBody(t C.coraza_transaction_t, data []byte) C.int {
+	if len(data) == 0 {
+		return 0
+	}
+	return coraza_append_request_body(t, (*C.uchar)(unsafe.Pointer(&data[0])), C.int(len(data)))
+}
+
+// appendResponseBody is an internal helper that calls coraza_append_response_body with a Go byte slice.
+// An empty slice is treated as a no-op (C functions must not receive a nil data pointer with length > 0).
+func appendResponseBody(t C.coraza_transaction_t, data []byte) C.int {
+	if len(data) == 0 {
+		return 0
+	}
+	return coraza_append_response_body(t, (*C.uchar)(unsafe.Pointer(&data[0])), C.int(len(data)))
+}
+
+// addRequestHeaderStr is an internal helper that calls coraza_add_request_header with Go strings.
+func addRequestHeaderStr(t C.coraza_transaction_t, name, value string) C.int {
+	cName := C.CString(name)
+	cValue := C.CString(value)
+	defer C.free(unsafe.Pointer(cName))
+	defer C.free(unsafe.Pointer(cValue))
+	return coraza_add_request_header(t, cName, C.int(len(name)), cValue, C.int(len(value)))
+}
+
+// processConnectionStr is an internal helper that calls coraza_process_connection with Go strings,
+// freeing the allocated C strings before returning.
+func processConnectionStr(t C.coraza_transaction_t, sourceAddress string, clientPort int, serverHost string, serverPort int) C.int {
+	cSrc := C.CString(sourceAddress)
+	cSrv := C.CString(serverHost)
+	defer C.free(unsafe.Pointer(cSrc))
+	defer C.free(unsafe.Pointer(cSrv))
+	return coraza_process_connection(t, cSrc, C.int(clientPort), cSrv, C.int(serverPort))
+}
+
+// processUriStr is an internal helper that calls coraza_process_uri with Go strings,
+// freeing the allocated C strings before returning.
+func processUriStr(t C.coraza_transaction_t, uri, method, proto string) C.int {
+	cUri := C.CString(uri)
+	cMethod := C.CString(method)
+	cProto := C.CString(proto)
+	defer C.free(unsafe.Pointer(cUri))
+	defer C.free(unsafe.Pointer(cMethod))
+	defer C.free(unsafe.Pointer(cProto))
+	return coraza_process_uri(t, cUri, cMethod, cProto)
+}
+
+// processResponseHeadersStr is an internal helper that calls coraza_process_response_headers
+// with a Go string, freeing the allocated C string before returning.
+func processResponseHeadersStr(t C.coraza_transaction_t, status int, proto string) C.int {
+	cProto := C.CString(proto)
+	defer C.free(unsafe.Pointer(cProto))
+	return coraza_process_response_headers(t, C.int(status), cProto)
+}
+
+// newWafCheckError calls coraza_new_waf and returns (waf, true) when creation fails,
+// freeing the error string. This avoids the need for CGo in test files.
+func newWafCheckError(config C.coraza_waf_config_t) (C.coraza_waf_t, bool) {
+	var errStr *C.char
+	waf := coraza_new_waf(config, &errStr)
+	if errStr != nil {
+		C.free(unsafe.Pointer(errStr))
+		return waf, true
+	}
+	return waf, false
+}
+
+// captureMatchedRule installs a Go-level error callback on the given WAF config that
+// captures the first matched rule. It returns two functions: one to retrieve the
+// coraza_matched_rule_t handle for use in tests, and one to release the handle when done.
+func captureMatchedRule(c C.coraza_waf_config_t) (getHandle func() C.coraza_matched_rule_t, releaseHandle func()) {
+	var handle cgo.Handle
+	var captured bool
+
+	configHandle := fromRaw[*WafConfigHandle](c)
+	configHandle.config = configHandle.config.WithErrorCallback(func(rule types.MatchedRule) {
+		if !captured {
+			handle = cgo.NewHandle(rule)
+			captured = true
+		}
+	})
+
+	return func() C.coraza_matched_rule_t {
+		if !captured {
+			return 0
+		}
+		return C.coraza_matched_rule_t(handle)
+	}, func() {
+		if captured {
+			handle.Delete()
+		}
+	}
+}
+
+// freeString frees a C string allocated by coraza functions such as
+// coraza_matched_rule_get_error_log.
+func freeString(s *C.char) {
+	if s != nil {
+		C.free(unsafe.Pointer(s))
+	}
+}
+
+// severityToInt converts a coraza_severity_t enum to a Go int for use in test assertions.
+func severityToInt(s C.coraza_severity_t) int {
+	return int(s)
+}
+
 func main() {}
