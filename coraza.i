@@ -1,4 +1,10 @@
 /* SWIG interface file for libcoraza */
+/*
+ * SOURCE OF TRUTH: libcoraza/coraza.go
+ * Every //export function in coraza.go must be reflected here as either an
+ * extern declaration or a %ignore directive (for callback-based functions).
+ * Run `make check-swig-sync` to verify the two files are in sync.
+ */
 %module coraza
 
 %{

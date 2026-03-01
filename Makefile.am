@@ -30,10 +30,25 @@ install-data-local: all check
 	@INSTALL@ libcoraza.$(SHARED_EXT) $(DESTDIR)@prefix@/lib/
 	@INSTALL@ coraza/coraza.h $(DESTDIR)@prefix@/include/coraza/coraza.h
 
-.PHONY: docs swig
+.PHONY: docs swig check-swig-sync
 docs:
 # build C header doxygen
 	@doxygen ./Doxyfile
+
+check-swig-sync:
+	@echo "Checking coraza.i is in sync with Go exports..."
+	@missing=0; \
+	for fn in $$(grep -h '//export ' $(srcdir)/libcoraza/coraza.go | sed 's|.*//export ||'); do \
+		if ! grep -qE "(extern|%ignore).*$$fn" $(srcdir)/coraza.i; then \
+			echo "  MISSING: $$fn exported from Go but not declared in coraza.i"; \
+			missing=1; \
+		fi; \
+	done; \
+	if [ $$missing -eq 0 ]; then \
+		echo "  OK: all Go exports are accounted for in coraza.i"; \
+	else \
+		exit 1; \
+	fi
 
 check_PROGRAMS = tests/simple_get
 
