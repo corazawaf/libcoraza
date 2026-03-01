@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/corazawaf/libcoraza/compare/v1.0.0...v1.0.1) (2026-02-28)
+
+
+### Bug Fixes
+
+* eliminate C string memory leaks in fuzz test iterations ([eab2df7](https://github.com/corazawaf/libcoraza/commit/eab2df77d408653fa688102a71daa2c30aeabf76))
+
 ## 1.0.0 (2026-02-27)
 
 
