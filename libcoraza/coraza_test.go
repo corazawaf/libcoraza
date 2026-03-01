@@ -548,6 +548,68 @@ func TestFreeIntervention(t *testing.T) {
 	coraza_free_waf(waf)
 }
 
+func TestInterventionRedirect(t *testing.T) {
+	config := coraza_new_waf_config()
+	coraza_rules_add(config, stringToC(`SecRule ARGS:trigger "@streq yes" "id:1,phase:1,status:302,redirect:http://example.com"`))
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+
+	coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80)
+	coraza_process_uri(tt, stringToC("/?trigger=yes"), stringToC("GET"), stringToC("HTTP/1.1"))
+	coraza_process_request_headers(tt)
+
+	intervention := coraza_intervention(tt)
+	if intervention == nil {
+		t.Fatal("Expected non-nil intervention for redirect rule")
+	}
+	if intervention.status != 302 {
+		t.Fatalf("Expected status 302, got %d", intervention.status)
+	}
+	if stringFromC(intervention.action) != "redirect" {
+		t.Fatalf("Expected action 'redirect', got '%s'", stringFromC(intervention.action))
+	}
+	if intervention.data == nil {
+		t.Fatal("Expected non-nil data field for redirect URL")
+	}
+	if stringFromC(intervention.data) != "http://example.com" {
+		t.Fatalf("Expected data 'http://example.com', got '%s'", stringFromC(intervention.data))
+	}
+
+	rv := coraza_free_intervention(intervention)
+	if rv != 0 {
+		t.Fatalf("coraza_free_intervention expected 0, got %d", rv)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+func TestInterventionDenyNoData(t *testing.T) {
+	config := coraza_new_waf_config()
+	coraza_rules_add(config, stringToC(`SecRule REMOTE_ADDR "127.0.0.1" "id:1,phase:1,deny,status:403"`))
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+
+	coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80)
+	coraza_process_request_headers(tt)
+
+	intervention := coraza_intervention(tt)
+	if intervention == nil {
+		t.Fatal("Expected non-nil intervention")
+	}
+	if intervention.data != nil {
+		t.Fatal("Expected nil data field for deny action")
+	}
+
+	rv := coraza_free_intervention(intervention)
+	if rv != 0 {
+		t.Fatalf("coraza_free_intervention expected 0, got %d", rv)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
 func TestRulesMerge(t *testing.T) {
 	config1 := coraza_new_waf_config()
 	waf1 := coraza_new_waf(config1, nil)

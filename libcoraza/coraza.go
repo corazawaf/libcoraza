@@ -14,6 +14,7 @@ typedef struct coraza_intervention_t
     int status;
     int pause;
     int disruptive;
+	char *data;
 } coraza_intervention_t;
 
 typedef uintptr_t coraza_waf_config_t;
@@ -210,8 +211,11 @@ func coraza_intervention(t C.coraza_transaction_t) *C.coraza_intervention_t {
 	if tx.Interruption() == nil {
 		return nil
 	}
-	mem := (*C.coraza_intervention_t)(C.malloc(C.size_t(unsafe.Sizeof(C.coraza_intervention_t{}))))
+	mem := (*C.coraza_intervention_t)(C.calloc(1, C.size_t(unsafe.Sizeof(C.coraza_intervention_t{}))))
 	mem.action = C.CString(tx.Interruption().Action)
+	if tx.Interruption().Data != "" {
+		mem.data = C.CString(tx.Interruption().Data)
+	}
 	mem.status = C.int(tx.Interruption().Status)
 	return mem
 }
@@ -357,6 +361,9 @@ func coraza_free_intervention(it *C.coraza_intervention_t) C.int {
 	}
 	defer C.free(unsafe.Pointer(it))
 	C.free(unsafe.Pointer(it.action))
+	if it.data != nil {
+		C.free(unsafe.Pointer(it.data))
+	}
 	return 0
 }
 
