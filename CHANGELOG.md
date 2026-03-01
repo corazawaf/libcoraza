@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/corazawaf/libcoraza/compare/v1.0.1...v1.1.0) (2026-03-01)
+
+
+### Features
+
+* add data field to coraza_intervention_t ([c49ed7f](https://github.com/corazawaf/libcoraza/commit/c49ed7ff2e3019ac934030d14ab7ecfc0db24298))
+
 ## [1.0.1](https://github.com/corazawaf/libcoraza/compare/v1.0.0...v1.0.1) (2026-02-28)
 
 
