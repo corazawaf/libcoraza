@@ -9,10 +9,8 @@ the default SWIG wrapper).
 Build and run from the repository root::
 
     make
-    swig -python -outdir examples/python/ -o coraza_wrap_python.c coraza.i
-    gcc -shared -fPIC -o examples/python/_coraza.so coraza_wrap_python.c \\
-        -I. $(python3-config --includes) -L. -lcoraza
-    LD_LIBRARY_PATH=. python3 examples/python/simple_get.py
+    make -C examples/python
+    make -C examples/python run
 """
 
 import os

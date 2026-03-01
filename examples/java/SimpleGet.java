@@ -13,13 +13,9 @@ import java.io.IOException;
  * <p>Build and run from the repository root:
  * <pre>
  *   make
- *   mkdir -p examples/java/gen
- *   swig -java -outdir examples/java/gen/ -o coraza_wrap_java.c coraza.i
- *   gcc -shared -fPIC -o libcoraza_jni.so coraza_wrap_java.c \
- *       -I. -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux \
- *       -L. -lcoraza
- *   javac -d examples/java/gen/ examples/java/gen/*.java examples/java/SimpleGet.java
- *   LD_LIBRARY_PATH=. java -cp examples/java/gen/ -Djava.library.path=. SimpleGet
+ *   make -C examples/java
+ *   LD_LIBRARY_PATH=examples/java \
+ *     java -cp examples/java/gen/ -Djava.library.path=examples/java SimpleGet
  * </pre>
  */
 public class SimpleGet {

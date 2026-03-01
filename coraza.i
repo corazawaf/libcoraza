@@ -3,6 +3,7 @@
 
 %{
 /* Include the actual generated header in the wrapper code */
+#include <stdlib.h>
 #include "coraza/coraza.h"
 %}
 
@@ -34,9 +35,12 @@
         *$1 = NULL;
 #ifdef SWIGJAVA
         SWIG_JavaThrowException(jenv, SWIG_JavaRuntimeException, _swig_err_msg);
+        free(_swig_err_msg);
         return $null;
 #else
-        SWIG_exception_fail(SWIG_RuntimeError, _swig_err_msg);
+        SWIG_Error(SWIG_RuntimeError, _swig_err_msg);
+        free(_swig_err_msg);
+        SWIG_fail;
 #endif
     }
 }
