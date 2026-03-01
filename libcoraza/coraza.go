@@ -211,7 +211,7 @@ func coraza_intervention(t C.coraza_transaction_t) *C.coraza_intervention_t {
 	if tx.Interruption() == nil {
 		return nil
 	}
-	mem := (*C.coraza_intervention_t)(C.malloc(C.size_t(unsafe.Sizeof(C.coraza_intervention_t{}))))
+	mem := (*C.coraza_intervention_t)(C.calloc(1, C.size_t(unsafe.Sizeof(C.coraza_intervention_t{}))))
 	mem.action = C.CString(tx.Interruption().Action)
 	if tx.Interruption().Data != "" {
 		mem.data = C.CString(tx.Interruption().Data)
