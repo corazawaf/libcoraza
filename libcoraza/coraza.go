@@ -11,10 +11,10 @@ package main
 typedef struct coraza_intervention_t
 {
 	char *action;
-	char *data;
     int status;
     int pause;
     int disruptive;
+	char *data;
 } coraza_intervention_t;
 
 typedef uintptr_t coraza_waf_config_t;
