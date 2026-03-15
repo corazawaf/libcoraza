@@ -1,6 +1,6 @@
 module github.com/corazawaf/libcoraza
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/corazawaf/coraza/v3 v3.3.4-0.20260227032550-ea24496c0343
@@ -22,7 +22,7 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valllabh/ocsf-schema-golang v1.0.3 // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/protobuf v1.35.1 // indirect
 	rsc.io/binaryregexp v0.2.0 // indirect
