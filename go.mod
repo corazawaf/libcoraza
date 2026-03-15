@@ -3,13 +3,13 @@ module github.com/corazawaf/libcoraza
 go 1.25.0
 
 require (
-	github.com/corazawaf/coraza/v3 v3.3.4-0.20260227032550-ea24496c0343
+	github.com/corazawaf/coraza/v3 v3.4.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.20.0
 )
 
 require (
-	github.com/corazawaf/libinjection-go v0.2.2 // indirect
+	github.com/corazawaf/libinjection-go v0.3.2 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/gotnospirit/makeplural v0.0.0-20180622080156-a5f48d94d976 // indirect
