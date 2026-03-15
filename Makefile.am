@@ -38,7 +38,7 @@ docs:
 check_PROGRAMS = tests/simple_get
 
 if OSX
-AM_LDFLAGS = -framework CoreFoundation -framework Security
+AM_LDFLAGS = -framework CoreFoundation -framework Security -lresolv
 endif
 
 if LINUX
