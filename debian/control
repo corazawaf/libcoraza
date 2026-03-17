@@ -27,6 +27,7 @@ Description: OWASP Coraza WAF C library - runtime
 Package: libcoraza-dev
 Section: libdevel
 Architecture: any
+Multi-Arch: same
 Depends: libcoraza1 (= ${binary:Version}), ${misc:Depends}
 Description: OWASP Coraza WAF C library - development files
  Coraza is an open-source Web Application Firewall engine. This package
