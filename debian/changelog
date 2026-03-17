@@ -1,0 +1,5 @@
+libcoraza (1.1.1-1) unstable; urgency=low
+
+  * Initial Debian packaging.
+
+ -- Pierre Pomes <pierre.pomes@gmail.com>  Tue, 17 Mar 2026 12:00:00 +0100
