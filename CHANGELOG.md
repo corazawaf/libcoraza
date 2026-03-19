@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/corazawaf/libcoraza/compare/v1.1.1...v1.2.0) (2026-03-19)
+
+
+### Features
+
+* add Debian packaging ([851e522](https://github.com/corazawaf/libcoraza/commit/851e522edf20737823dc6ba2132c543ea9434562))
+* add Debian packaging ([a3db312](https://github.com/corazawaf/libcoraza/commit/a3db312f2e5c1d8429a1426f0e132e58fcfda4a6))
+
 ## [1.1.1](https://github.com/corazawaf/libcoraza/compare/v1.1.0...v1.1.1) (2026-03-15)
 
 
