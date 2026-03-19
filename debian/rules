@@ -7,6 +7,9 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export GOPATH = $(CURDIR)/.gopath
 export GOCACHE = $(CURDIR)/.gocache
 export GOFLAGS = -mod=vendor
+export GOPROXY = off
+export GONOSUMCHECK = *
+export GOTOOLCHAIN = local
 
 SOMAJOR = 1
 SOVER = $(DEB_VERSION_UPSTREAM)
@@ -19,7 +22,6 @@ override_dh_autoreconf:
 	./build.sh
 
 override_dh_auto_configure:
-	go mod vendor
 	dh_auto_configure -- --libdir=/usr/lib/$(DEB_HOST_MULTIARCH)
 
 override_dh_auto_build:
@@ -53,5 +55,5 @@ override_dh_strip:
 
 override_dh_auto_clean:
 	[ ! -f Makefile ] || $(MAKE) distclean
-	chmod -Rf u+w .gopath .gocache vendor 2>/dev/null || true
-	rm -rf .gopath .gocache vendor
+	chmod -Rf u+w .gopath .gocache 2>/dev/null || true
+	rm -rf .gopath .gocache
