@@ -34,3 +34,4 @@ _obj/
 .libs/
 Doxyfile
 .dirstamp
+vendor/
