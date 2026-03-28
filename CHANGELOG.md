@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/corazawaf/libcoraza/compare/v1.2.0...v1.2.1) (2026-03-28)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/corazawaf/coraza/v3 to v3.5.0 in go.mod ([#74](https://github.com/corazawaf/libcoraza/issues/74)) ([01ae755](https://github.com/corazawaf/libcoraza/commit/01ae75582bd83f1148d3f11060966bd5d058b803))
+
 ## [1.2.0](https://github.com/corazawaf/libcoraza/compare/v1.1.1...v1.2.0) (2026-03-19)
 
 
