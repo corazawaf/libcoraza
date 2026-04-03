@@ -277,10 +277,105 @@ def test_callbacks():
     print("  test_callbacks: PASS")
 
 
+# ---------------------------------------------------------------------------
+# test_intervention_redirect
+# Covers: coraza_intervention .data field (redirect URL), coraza_free_intervention
+# Validates the char *data struct field that was previously missing from coraza.i.
+# ---------------------------------------------------------------------------
+def test_intervention_redirect():
+    redirect_rule = (
+        'SecRule ARGS:trigger "@streq yes" '
+        '"id:10,phase:1,status:302,redirect:http://example.com"'
+    )
+    cfg = _c.coraza_new_waf_config()
+    _c.coraza_rules_add(cfg, redirect_rule)
+    waf = _c.coraza_new_waf(cfg)
+    _check(_c.coraza_free_waf_config(cfg) == 0, "coraza_free_waf_config failed")
+
+    tx = _c.coraza_new_transaction(waf)
+    _c.coraza_process_connection(tx, "10.0.0.1", 12345, "localhost", 80)
+    _c.coraza_add_get_args(tx, "trigger", "yes")
+    _c.coraza_process_uri(tx, "/?trigger=yes", "GET", "HTTP/1.1")
+    _c.coraza_process_request_headers(tx)
+
+    it = _c.coraza_intervention(tx)
+    _check(it is not None, "expected a redirect intervention but got None")
+    _check(it.status == 302, f"expected status 302, got {it.status}")
+    _check(it.action == "redirect", f"expected action 'redirect', got {it.action!r}")
+    _check(it.data == "http://example.com",
+           f"expected data 'http://example.com', got {it.data!r}")
+
+    _check(_c.coraza_free_intervention(it) == 0, "coraza_free_intervention failed")
+    _check(_c.coraza_free_transaction(tx) == 0, "coraza_free_transaction failed")
+    _check(_c.coraza_free_waf(waf) == 0, "coraza_free_waf failed")
+
+    print("  test_intervention_redirect: PASS")
+
+
+# ---------------------------------------------------------------------------
+# test_waf_creation_error
+# Covers: coraza_new_waf char**er typemap — bad config raises RuntimeError.
+# ---------------------------------------------------------------------------
+def test_waf_creation_error():
+    cfg = _c.coraza_new_waf_config()
+    # Reference a non-existent rules file to force WAF creation to fail.
+    _c.coraza_rules_add_file(cfg, "/nonexistent/path/rules.conf")
+    try:
+        _c.coraza_new_waf(cfg)
+        raise AssertionError("expected RuntimeError from coraza_new_waf but none was raised")
+    except RuntimeError:
+        pass
+    _check(_c.coraza_free_waf_config(cfg) == 0, "coraza_free_waf_config failed")
+
+    print("  test_waf_creation_error: PASS")
+
+
+# ---------------------------------------------------------------------------
+# test_invalid_inputs
+# Covers: Python typemap validation and PyCallable_Check hardening.
+# ---------------------------------------------------------------------------
+def test_invalid_inputs():
+    # coraza_append_request_body must reject non-bytes input.
+    cfg = _c.coraza_new_waf_config()
+    waf = _c.coraza_new_waf(cfg)
+    _c.coraza_free_waf_config(cfg)
+    tx = _c.coraza_new_transaction(waf)
+    try:
+        _c.coraza_append_request_body(tx, "not bytes")
+        raise AssertionError("expected TypeError for str input but none was raised")
+    except TypeError:
+        pass
+    _c.coraza_free_transaction(tx)
+    _c.coraza_free_waf(waf)
+
+    # coraza_set_error_callback must reject non-callables.
+    cfg = _c.coraza_new_waf_config()
+    try:
+        _c.coraza_set_error_callback(cfg, "not a callable")
+        raise AssertionError("expected TypeError for non-callable but none was raised")
+    except TypeError:
+        pass
+    _check(_c.coraza_free_waf_config(cfg) == 0, "coraza_free_waf_config failed")
+
+    # coraza_set_debug_log_callback must reject non-callables.
+    cfg = _c.coraza_new_waf_config()
+    try:
+        _c.coraza_set_debug_log_callback(cfg, 42)
+        raise AssertionError("expected TypeError for non-callable but none was raised")
+    except TypeError:
+        pass
+    _check(_c.coraza_free_waf_config(cfg) == 0, "coraza_free_waf_config failed")
+
+    print("  test_invalid_inputs: PASS")
+
+
 if __name__ == "__main__":
     print("Running libcoraza Python SWIG tests...")
     test_lifecycle()
     test_request_body_from_file()
     test_rules_merge()
     test_callbacks()
+    test_intervention_redirect()
+    test_waf_creation_error()
+    test_invalid_inputs()
     print("All tests passed.")

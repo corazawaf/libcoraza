@@ -276,12 +276,70 @@ public class SimpleGet {
         System.out.println("  testCallbacks: PASS");
     }
 
+    // -----------------------------------------------------------------------
+    // testInterventionRedirect
+    // Covers: coraza_intervention .data field (redirect URL).
+    // Validates the char *data struct field that was previously missing from
+    // coraza.i — ensures the fix is exercised end-to-end through the SWIG layer.
+    // -----------------------------------------------------------------------
+    static void testInterventionRedirect() {
+        String redirectRule =
+            "SecRule ARGS:trigger \"@streq yes\" " +
+            "\"id:10,phase:1,status:302,redirect:http://example.com\"";
+
+        long cfg = coraza.coraza_new_waf_config();
+        coraza.coraza_rules_add(cfg, redirectRule);
+        long waf = coraza.coraza_new_waf(cfg);
+        check(coraza.coraza_free_waf_config(cfg) == 0, "coraza_free_waf_config failed");
+
+        long tx = coraza.coraza_new_transaction(waf);
+        coraza.coraza_process_connection(tx, "10.0.0.1", 12345, "localhost", 80);
+        coraza.coraza_add_get_args(tx, "trigger", "yes");
+        coraza.coraza_process_uri(tx, "/?trigger=yes", "GET", "HTTP/1.1");
+        coraza.coraza_process_request_headers(tx);
+
+        coraza_intervention_t it = coraza.coraza_intervention(tx);
+        check(it != null, "expected a redirect intervention but got null");
+        check(it.getStatus() == 302, "expected status 302, got " + it.getStatus());
+        check("redirect".equals(it.getAction()),
+              "expected action 'redirect', got " + it.getAction());
+        check("http://example.com".equals(it.getData()),
+              "expected data 'http://example.com', got " + it.getData());
+
+        check(coraza.coraza_free_intervention(it) == 0, "coraza_free_intervention failed");
+        check(coraza.coraza_free_transaction(tx) == 0, "coraza_free_transaction failed");
+        check(coraza.coraza_free_waf(waf) == 0, "coraza_free_waf failed");
+
+        System.out.println("  testInterventionRedirect: PASS");
+    }
+
+    // -----------------------------------------------------------------------
+    // testWafCreationError
+    // Covers: coraza_new_waf char**er typemap — bad config raises RuntimeException.
+    // -----------------------------------------------------------------------
+    static void testWafCreationError() {
+        long cfg = coraza.coraza_new_waf_config();
+        // Reference a non-existent rules file to force WAF creation to fail.
+        coraza.coraza_rules_add_file(cfg, "/nonexistent/path/rules.conf");
+        try {
+            coraza.coraza_new_waf(cfg);
+            throw new AssertionError("expected RuntimeException from coraza_new_waf but none was raised");
+        } catch (RuntimeException e) {
+            // expected
+        }
+        check(coraza.coraza_free_waf_config(cfg) == 0, "coraza_free_waf_config failed");
+
+        System.out.println("  testWafCreationError: PASS");
+    }
+
     public static void main(String[] args) throws IOException {
         System.out.println("Running libcoraza Java SWIG tests...");
         testLifecycle();
         testRequestBodyFromFile();
         testRulesMerge();
         testCallbacks();
+        testInterventionRedirect();
+        testWafCreationError();
         System.out.println("All tests passed.");
     }
 }
