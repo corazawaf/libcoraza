@@ -184,11 +184,14 @@ int coraza_set_debug_log_callback(coraza_waf_config_t cfg, PyObject *cb) {
 %typemap(jstype) (const unsigned char *data, int length) "byte[]"
 %typemap(javain) (const unsigned char *data, int length) "$javainput"
 %typemap(in)     (const unsigned char *data, int length) {
-    $1 = (unsigned char *)JCALL2(GetByteArrayElements, jenv, $input, NULL);
+    /* GetPrimitiveArrayCritical avoids a copy on most JVMs by pinning the
+     * heap array directly.  The critical section ends in argout below; no
+     * other JNI calls may occur between Get and Release. */
+    $1 = (unsigned char *)JCALL2(GetPrimitiveArrayCritical, jenv, $input, NULL);
     $2 = (int)JCALL1(GetArrayLength, jenv, $input);
 }
 %typemap(argout) (const unsigned char *data, int length) {
-    JCALL3(ReleaseByteArrayElements, jenv, $input, (jbyte *)$1, JNI_ABORT);
+    JCALL3(ReleasePrimitiveArrayCritical, jenv, $input, (jbyte *)$1, JNI_ABORT);
 }
 
 /*
@@ -215,25 +218,21 @@ typedef struct {
 static void _swig_java_error_trampoline(void *ctx, coraza_matched_rule_t rule) {
     _swig_java_cb_ctx_t *jctx = (_swig_java_cb_ctx_t *)ctx;
     JNIEnv *env = NULL;
-    jboolean attached = JNI_FALSE;
-    if ((*jctx->jvm)->GetEnv(jctx->jvm, (void **)&env, JNI_VERSION_1_6) == JNI_EDETACHED) {
+    /* Attach as a daemon if needed and leave the thread attached.  Daemon
+     * threads are cleaned up by the JVM on exit, so DetachCurrentThread is
+     * unnecessary and adds ~microseconds of JVM registry overhead per call. */
+    if ((*jctx->jvm)->GetEnv(jctx->jvm, (void **)&env, JNI_VERSION_1_6) == JNI_EDETACHED)
         (*jctx->jvm)->AttachCurrentThreadAsDaemon(jctx->jvm, (void **)&env, NULL);
-        attached = JNI_TRUE;
-    }
     (*env)->CallVoidMethod(env, jctx->obj, jctx->mid, (jlong)(uintptr_t)rule);
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionDescribe(env);
-    if (attached) (*jctx->jvm)->DetachCurrentThread(jctx->jvm);
 }
 
 static void _swig_java_debug_trampoline(void *ctx, coraza_debug_log_level_t level,
                                          const char *msg, const char *fields) {
     _swig_java_cb_ctx_t *jctx = (_swig_java_cb_ctx_t *)ctx;
     JNIEnv *env = NULL;
-    jboolean attached = JNI_FALSE;
-    if ((*jctx->jvm)->GetEnv(jctx->jvm, (void **)&env, JNI_VERSION_1_6) == JNI_EDETACHED) {
+    if ((*jctx->jvm)->GetEnv(jctx->jvm, (void **)&env, JNI_VERSION_1_6) == JNI_EDETACHED)
         (*jctx->jvm)->AttachCurrentThreadAsDaemon(jctx->jvm, (void **)&env, NULL);
-        attached = JNI_TRUE;
-    }
     jstring jmsg    = (*env)->NewStringUTF(env, msg    ? msg    : "");
     jstring jfields = (*env)->NewStringUTF(env, fields ? fields : "");
     /* NewStringUTF returns NULL on OOM; skip the call rather than crash. */
@@ -243,7 +242,6 @@ static void _swig_java_debug_trampoline(void *ctx, coraza_debug_log_level_t leve
     if (jmsg)    (*env)->DeleteLocalRef(env, jmsg);
     if (jfields) (*env)->DeleteLocalRef(env, jfields);
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionDescribe(env);
-    if (attached) (*jctx->jvm)->DetachCurrentThread(jctx->jvm);
 }
 
 JNIEXPORT jint JNICALL Java_coraza_coraza_1set_1error_1callback(
@@ -353,7 +351,25 @@ typedef enum coraza_severity_t {
 
 /*
  * Function declarations
+ *
+ * Release the Python GIL for calls that cross into Go and do real work, so
+ * other Python threads can run concurrently.  Trivial accessors and free
+ * functions are excluded because the GIL release/reacquire overhead would
+ * exceed any benefit.
  */
+#ifdef SWIGPYTHON
+%thread coraza_new_waf;
+%thread coraza_rules_merge;
+%thread coraza_process_connection;
+%thread coraza_process_uri;
+%thread coraza_process_request_headers;
+%thread coraza_process_request_body;
+%thread coraza_append_request_body;
+%thread coraza_process_response_headers;
+%thread coraza_process_response_body;
+%thread coraza_append_response_body;
+%thread coraza_process_logging;
+#endif
 
 extern coraza_waf_config_t coraza_new_waf_config();
 extern int coraza_rules_add_file(coraza_waf_config_t c, const char *file);
