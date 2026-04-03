@@ -7,7 +7,7 @@ Welcome to libcoraza, the C library for OWASP Coraza Web Application Firewall. B
 * A C compiler:
   * gcc or
   * clang
-* Go compiler v1.24+
+* Go compiler v1.25+
 * libtool
 * autotools
 * make
@@ -55,10 +55,14 @@ go mod tidy
 make
 ```
 
-If you didn't install the built library (skipped the `sudo make install` step), you should set the LD_LIBRARY_PATH:
+If you didn't install the built library (skipped the `sudo make install` step), set the library path before running your application:
 
 ```
+# Linux
 export LD_LIBRARY_PATH=../:$LD_LIBRARY_PATH
+
+# macOS
+export DYLD_LIBRARY_PATH=../:$DYLD_LIBRARY_PATH
 ```
 
 ## SWIG language bindings
@@ -83,9 +87,25 @@ Install on macOS (Homebrew):
 brew install swig
 ```
 
-### Building bindings
+### Ready-made examples
 
-First build the library and generate the C header:
+The `examples/` directory contains fully working examples with their own Makefiles:
+
+```
+# Python
+make -C examples/python      # build
+make -C examples/python run  # build and run
+
+# Java (requires JAVA_HOME to be set)
+make -C examples/java        # build
+make -C examples/java run    # build and run
+```
+
+Each example exercises the full API including error and debug log callbacks.
+
+### Building bindings for other languages
+
+First build the library:
 
 ```
 ./build.sh
@@ -93,40 +113,21 @@ First build the library and generate the C header:
 make
 ```
 
-Then run the `swig` Makefile target, optionally specifying the target language
-via `SWIG_LANG` (default: `python`):
+Then invoke SWIG directly against `coraza.i`:
 
 ```
-# Python bindings (default)
-make swig
-
-# Ruby bindings
-make swig SWIG_LANG=ruby
-
-# Java bindings
-make swig SWIG_LANG=java
-```
-
-This generates `coraza_wrap.c` (and a language-specific source file such as
-`coraza.py`) that can be compiled together with the `libcoraza` shared library
-into a loadable extension module.
-
-### Python example
-
-```
-make swig SWIG_LANG=python
-gcc -shared -fPIC coraza_wrap.c $(python3-config --includes) \
-    -L. -lcoraza -o _coraza.so
-python3 -c "import coraza; waf = coraza.coraza_new_waf_config(); print(waf)"
+# Ruby example
+swig -ruby -o coraza_wrap.c coraza.i
+gcc -shared -fPIC coraza_wrap.c $(ruby -rrbconfig -e 'puts RbConfig::CONFIG["CFLAGS"]') \
+    -L. -lcoraza -o coraza.so
 ```
 
 ### Notes
 
-* The callback-based functions (`coraza_add_debug_log_callback` and
-  `coraza_add_error_callback`) are excluded from the default SWIG wrapper
-  because function pointer handling is language-specific. Refer to the SWIG
-  documentation on `%callback` or director classes to re-enable them for
-  your target language.
+* **Callbacks** — `coraza_set_error_callback` and `coraza_set_debug_log_callback` are
+  provided as language-specific trampolines for Python and Java (see `coraza.i` and the
+  example directories). For other languages, refer to the SWIG documentation on
+  `%callback` or director classes.
 * `coraza_matched_rule_get_error_log` returns a string owned by the caller.
   The generated wrapper takes ownership automatically so the target language
   runtime frees it when the object is garbage collected.
