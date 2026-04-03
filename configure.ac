@@ -1,7 +1,7 @@
 AC_PREREQ([2.60])
 
 AC_INIT([libcoraza],
-        m4_esyscmd([build-aux/git-version-gen .tarball-version]),
+        m4_esyscmd([tr -d '[:space:]' < version.txt]),
         [https://github.com/corazawaf/libcoraza/issues],
         [libcoraza],
         [https://github.com/corazawaf/libcoraza])
@@ -31,6 +31,10 @@ else
   AC_SUBST([GOVERSION], [$(go version | cut -d" " -f3)])
 fi
 PKG_PROG_PKG_CONFIG
+
+# Check for SWIG (optional, needed for language bindings)
+AC_PATH_PROG([SWIG], [swig])
+AM_CONDITIONAL([HAVE_SWIG], [test -n "$SWIG"])
 
 # check host os
 AC_CANONICAL_HOST
@@ -78,5 +82,6 @@ echo \
  Preprocessor	${CPP} ${CPPFLAGS}
  C Compiler	${CC} ${CFLAGS}
  Go Version	${GOVERSION}
+ SWIG		${SWIG:-not found (language bindings disabled)}
 
 -----------------------------------------------------------------------"

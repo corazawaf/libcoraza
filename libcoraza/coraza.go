@@ -84,6 +84,11 @@ type WafHandle struct {
 	rulesCount int
 }
 
+// SWIG INTERFACE SYNC NOTE: When adding, removing, or changing any //export
+// function in this file, coraza.i must be updated accordingly (add an extern
+// declaration, or add a %ignore directive for callback-based functions).
+// Run `make check-swig-sync` to verify the two files are in sync.
+
 //export coraza_new_waf_config
 func coraza_new_waf_config() C.coraza_waf_config_t {
 	return C.coraza_waf_config_t(cgo.NewHandle(&WafConfigHandle{

@@ -10,6 +10,9 @@ docs/
 .deps/
 Makefile
 Makefile.in
+# Track the example Makefiles explicitly
+!examples/python/Makefile
+!examples/java/Makefile
 autom4te.cache/
 aclocal.m4
 ar-lib
@@ -34,4 +37,15 @@ _obj/
 .libs/
 Doxyfile
 .dirstamp
+coraza_wrap.c
+coraza_wrap_python.c
+coraza_wrap_java.c
+coraza.py
+examples/python/_coraza.so
+examples/python/_coraza_wrap.c
+examples/python/coraza.py
+examples/python/__pycache__/
+examples/java/gen/
+examples/java/coraza_wrap.c
+examples/java/libcoraza_jni.so
 vendor/
