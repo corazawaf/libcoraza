@@ -69,13 +69,20 @@
         PyErr_SetString(PyExc_TypeError, "Expected bytes or bytearray");
         SWIG_fail;
     }
+    Py_ssize_t _swig_buf_sz;
     if (PyBytes_Check($input)) {
         $1 = (unsigned char *)PyBytes_AS_STRING($input);
-        $2 = (int)PyBytes_GET_SIZE($input);
+        _swig_buf_sz = PyBytes_GET_SIZE($input);
     } else {
         $1 = (unsigned char *)PyByteArray_AS_STRING($input);
-        $2 = (int)PyByteArray_GET_SIZE($input);
+        _swig_buf_sz = PyByteArray_GET_SIZE($input);
     }
+    /* Guard against Py_ssize_t → int truncation (buffer > 2 GB). */
+    if (_swig_buf_sz > INT_MAX) {
+        PyErr_SetString(PyExc_ValueError, "buffer exceeds maximum length (2 GB)");
+        SWIG_fail;
+    }
+    $2 = (int)_swig_buf_sz;
 }
 
 /*
@@ -99,7 +106,9 @@
 static void _swig_py_error_trampoline(void *ctx, coraza_matched_rule_t rule) {
     PyGILState_STATE gs = PyGILState_Ensure();
     PyObject *cb = (PyObject *)ctx;
-    PyObject *r = PyObject_CallFunction(cb, "k", (unsigned long)rule);
+    /* Use "K" (unsigned long long) to avoid truncation on 64-bit Windows
+     * where unsigned long is 32 bits but uintptr_t is 64 bits. */
+    PyObject *r = PyObject_CallFunction(cb, "K", (unsigned long long)rule);
     Py_XDECREF(r);
     if (PyErr_Occurred()) PyErr_Print();
     PyGILState_Release(gs);
@@ -119,10 +128,18 @@ static void _swig_py_debug_trampoline(void *ctx, coraza_debug_log_level_t level,
 
 %inline %{
 int coraza_set_error_callback(coraza_waf_config_t cfg, PyObject *cb) {
+    if (!PyCallable_Check(cb)) {
+        PyErr_SetString(PyExc_TypeError, "coraza_set_error_callback: expected a callable");
+        return 1;
+    }
     Py_INCREF(cb);
     return coraza_add_error_callback(cfg, _swig_py_error_trampoline, (void *)cb);
 }
 int coraza_set_debug_log_callback(coraza_waf_config_t cfg, PyObject *cb) {
+    if (!PyCallable_Check(cb)) {
+        PyErr_SetString(PyExc_TypeError, "coraza_set_debug_log_callback: expected a callable");
+        return 1;
+    }
     Py_INCREF(cb);
     return coraza_add_debug_log_callback(cfg, _swig_py_debug_trampoline, (void *)cb);
 }
@@ -210,9 +227,12 @@ static void _swig_java_debug_trampoline(void *ctx, coraza_debug_log_level_t leve
     }
     jstring jmsg    = (*env)->NewStringUTF(env, msg    ? msg    : "");
     jstring jfields = (*env)->NewStringUTF(env, fields ? fields : "");
-    (*env)->CallVoidMethod(env, jctx->obj, jctx->mid, (jint)level, jmsg, jfields);
-    (*env)->DeleteLocalRef(env, jmsg);
-    (*env)->DeleteLocalRef(env, jfields);
+    /* NewStringUTF returns NULL on OOM; skip the call rather than crash. */
+    if (jmsg && jfields) {
+        (*env)->CallVoidMethod(env, jctx->obj, jctx->mid, (jint)level, jmsg, jfields);
+    }
+    if (jmsg)    (*env)->DeleteLocalRef(env, jmsg);
+    if (jfields) (*env)->DeleteLocalRef(env, jfields);
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionDescribe(env);
     if (attached) (*jctx->jvm)->DetachCurrentThread(jctx->jvm);
 }
@@ -222,12 +242,25 @@ JNIEXPORT jint JNICALL Java_coraza_coraza_1set_1error_1callback(
     if (!cb) return 1;
     _swig_java_cb_ctx_t *ctx =
         (_swig_java_cb_ctx_t *)malloc(sizeof(_swig_java_cb_ctx_t));
+    if (!ctx) return 1;  /* OOM */
     (*env)->GetJavaVM(env, &ctx->jvm);
     ctx->obj = (*env)->NewGlobalRef(env, cb);
     ctx->mid = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, cb),
                                     "onError", "(J)V");
-    return coraza_add_error_callback((coraza_waf_config_t)(uintptr_t)cfg,
-                                      _swig_java_error_trampoline, ctx);
+    /* GetMethodID returns NULL (+ pending exception) if the method is absent.
+     * Clean up and surface the exception rather than storing a NULL mid. */
+    if (!ctx->mid) {
+        (*env)->DeleteGlobalRef(env, ctx->obj);
+        free(ctx);
+        return 1;
+    }
+    jint ret = (jint)coraza_add_error_callback((coraza_waf_config_t)(uintptr_t)cfg,
+                                               _swig_java_error_trampoline, ctx);
+    if (ret != 0) {
+        (*env)->DeleteGlobalRef(env, ctx->obj);
+        free(ctx);
+    }
+    return ret;
 }
 
 JNIEXPORT jint JNICALL Java_coraza_coraza_1set_1debug_1log_1callback(
@@ -235,13 +268,24 @@ JNIEXPORT jint JNICALL Java_coraza_coraza_1set_1debug_1log_1callback(
     if (!cb) return 1;
     _swig_java_cb_ctx_t *ctx =
         (_swig_java_cb_ctx_t *)malloc(sizeof(_swig_java_cb_ctx_t));
+    if (!ctx) return 1;  /* OOM */
     (*env)->GetJavaVM(env, &ctx->jvm);
     ctx->obj = (*env)->NewGlobalRef(env, cb);
     ctx->mid = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, cb),
                                     "onDebugLog",
                                     "(ILjava/lang/String;Ljava/lang/String;)V");
-    return coraza_add_debug_log_callback((coraza_waf_config_t)(uintptr_t)cfg,
-                                          _swig_java_debug_trampoline, ctx);
+    if (!ctx->mid) {
+        (*env)->DeleteGlobalRef(env, ctx->obj);
+        free(ctx);
+        return 1;
+    }
+    jint ret = (jint)coraza_add_debug_log_callback((coraza_waf_config_t)(uintptr_t)cfg,
+                                                    _swig_java_debug_trampoline, ctx);
+    if (ret != 0) {
+        (*env)->DeleteGlobalRef(env, ctx->obj);
+        free(ctx);
+    }
+    return ret;
 }
 %}
 
