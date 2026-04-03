@@ -234,8 +234,8 @@ JNIEXPORT jint JNICALL Java_coraza_coraza_1set_1debug_1log_1callback(
 }
 %}
 
-%native(coraza_set_error_callback)     int coraza_set_error_callback(unsigned long long cfg, Object callback);
-%native(coraza_set_debug_log_callback) int coraza_set_debug_log_callback(unsigned long long cfg, Object callback);
+%native(coraza_set_error_callback)     int coraza_set_error_callback(long long cfg, Object callback);
+%native(coraza_set_debug_log_callback) int coraza_set_debug_log_callback(long long cfg, Object callback);
 #endif
 
 /*
