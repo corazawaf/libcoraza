@@ -126,6 +126,14 @@ static void _swig_py_debug_trampoline(void *ctx, coraza_debug_log_level_t level,
 }
 %}
 
+%exception coraza_set_error_callback {
+    $action
+    if (PyErr_Occurred()) SWIG_fail;
+}
+%exception coraza_set_debug_log_callback {
+    $action
+    if (PyErr_Occurred()) SWIG_fail;
+}
 %inline %{
 int coraza_set_error_callback(coraza_waf_config_t cfg, PyObject *cb) {
     if (!PyCallable_Check(cb)) {
@@ -144,6 +152,7 @@ int coraza_set_debug_log_callback(coraza_waf_config_t cfg, PyObject *cb) {
     return coraza_add_debug_log_callback(cfg, _swig_py_debug_trampoline, (void *)cb);
 }
 %}
+%exception;
 #endif
 
 #ifdef SWIGJAVA
