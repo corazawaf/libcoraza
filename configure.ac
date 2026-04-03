@@ -1,7 +1,7 @@
 AC_PREREQ([2.60])
 
 AC_INIT([libcoraza],
-        m4_esyscmd([build-aux/git-version-gen .tarball-version]),
+        m4_esyscmd([tr -d '[:space:]' < version.txt]),
         [https://github.com/corazawaf/libcoraza/issues],
         [libcoraza],
         [https://github.com/corazawaf/libcoraza])
