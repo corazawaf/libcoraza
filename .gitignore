@@ -48,3 +48,4 @@ examples/python/__pycache__/
 examples/java/gen/
 examples/java/coraza_wrap.c
 examples/java/libcoraza_jni.so
+vendor/

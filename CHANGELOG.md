@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.2.2](https://github.com/corazawaf/libcoraza/compare/v1.2.1...v1.2.2) (2026-03-31)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/corazawaf/coraza/v3 to v3.6.0 in go.mod ([#77](https://github.com/corazawaf/libcoraza/issues/77)) ([3848100](https://github.com/corazawaf/libcoraza/commit/38481005292839486affe2df8409438a6cd65f3e))
+
+## [1.2.1](https://github.com/corazawaf/libcoraza/compare/v1.2.0...v1.2.1) (2026-03-28)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/corazawaf/coraza/v3 to v3.5.0 in go.mod ([#74](https://github.com/corazawaf/libcoraza/issues/74)) ([01ae755](https://github.com/corazawaf/libcoraza/commit/01ae75582bd83f1148d3f11060966bd5d058b803))
+
+## [1.2.0](https://github.com/corazawaf/libcoraza/compare/v1.1.1...v1.2.0) (2026-03-19)
+
+
+### Features
+
+* add Debian packaging ([851e522](https://github.com/corazawaf/libcoraza/commit/851e522edf20737823dc6ba2132c543ea9434562))
+* add Debian packaging ([a3db312](https://github.com/corazawaf/libcoraza/commit/a3db312f2e5c1d8429a1426f0e132e58fcfda4a6))
+
+## [1.1.1](https://github.com/corazawaf/libcoraza/compare/v1.1.0...v1.1.1) (2026-03-15)
+
+
+### Bug Fixes
+
+* **deps:** update go modules in go.mod ([#64](https://github.com/corazawaf/libcoraza/issues/64)) ([5a6cd64](https://github.com/corazawaf/libcoraza/commit/5a6cd6420ee2c81421455ad1a55e6a2ff06dc9ee))
+* **deps:** update module github.com/corazawaf/coraza/v3 to v3.4.0 in go.mod ([#65](https://github.com/corazawaf/libcoraza/issues/65)) ([4319bb0](https://github.com/corazawaf/libcoraza/commit/4319bb0decfc525f7150e32565c8c6dbbaa3fe95))
+* MacOS build needs resolv ([406f008](https://github.com/corazawaf/libcoraza/commit/406f008fd62d43e43cf503b58e7d7345cfb0c672))
+
 ## [1.1.0](https://github.com/corazawaf/libcoraza/compare/v1.0.1...v1.1.0) (2026-03-01)
 
 
