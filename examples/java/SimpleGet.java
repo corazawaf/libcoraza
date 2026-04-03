@@ -142,7 +142,7 @@ public class SimpleGet {
             check(it != null, "expected an intervention but got null");
             check(it.getStatus() == 403, "expected status 403, got " + it.getStatus());
             System.out.println("  Intervention: action=" + it.getAction()
-                    + " status=" + it.getStatus());
+                    + " status=" + it.getStatus() + " data=" + it.getData());
 
             // coraza_free_intervention
             ret = coraza.coraza_free_intervention(it);
@@ -194,12 +194,12 @@ public class SimpleGet {
             bodyFile.delete();
         }
 
-        coraza.coraza_process_request_body(tx);
-        coraza.coraza_process_response_headers(tx, 200, "HTTP/1.1");
-        coraza.coraza_process_response_body(tx);
-        coraza.coraza_process_logging(tx);
-        coraza.coraza_free_transaction(tx);
-        coraza.coraza_free_waf(waf);
+        check(coraza.coraza_process_request_body(tx) == 0, "coraza_process_request_body failed");
+        check(coraza.coraza_process_response_headers(tx, 200, "HTTP/1.1") == 0, "coraza_process_response_headers failed");
+        check(coraza.coraza_process_response_body(tx) == 0, "coraza_process_response_body failed");
+        check(coraza.coraza_process_logging(tx) == 0, "coraza_process_logging failed");
+        check(coraza.coraza_free_transaction(tx) == 0, "coraza_free_transaction failed");
+        check(coraza.coraza_free_waf(waf) == 0, "coraza_free_waf failed");
 
         System.out.println("  testRequestBodyFromFile: PASS");
     }
@@ -207,22 +207,24 @@ public class SimpleGet {
     // -----------------------------------------------------------------------
     // testRulesMerge
     // Covers: coraza_rules_merge
+    // NOTE: coraza_rules_merge is currently a stub (always returns 0, does not
+    // actually merge rules). This test only verifies the call does not crash.
     // -----------------------------------------------------------------------
     static void testRulesMerge() {
         long cfg1 = coraza.coraza_new_waf_config();
         coraza.coraza_rules_add(cfg1, PASS_RULE);
         long waf1 = coraza.coraza_new_waf(cfg1);
-        coraza.coraza_free_waf_config(cfg1);
+        check(coraza.coraza_free_waf_config(cfg1) == 0, "coraza_free_waf_config failed");
 
         long cfg2 = coraza.coraza_new_waf_config();
         long waf2 = coraza.coraza_new_waf(cfg2);
-        coraza.coraza_free_waf_config(cfg2);
+        check(coraza.coraza_free_waf_config(cfg2) == 0, "coraza_free_waf_config failed");
 
         int ret = coraza.coraza_rules_merge(waf1, waf2);
         check(ret == 0, "coraza_rules_merge failed: " + ret);
 
-        coraza.coraza_free_waf(waf1);
-        coraza.coraza_free_waf(waf2);
+        check(coraza.coraza_free_waf(waf1) == 0, "coraza_free_waf(waf1) failed");
+        check(coraza.coraza_free_waf(waf2) == 0, "coraza_free_waf(waf2) failed");
 
         System.out.println("  testRulesMerge: PASS");
     }

@@ -121,6 +121,7 @@ typedef struct coraza_intervention_t {
     int status;
     int pause;
     int disruptive;
+    char *data;
 } coraza_intervention_t;
 
 typedef enum coraza_debug_log_level_t {

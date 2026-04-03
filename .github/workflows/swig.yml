@@ -9,11 +9,12 @@ permissions:
 
 jobs:
   swig-python:
-    name: Python SWIG wrapper (${{ matrix.go-version }})
+    name: Python SWIG wrapper (${{ matrix.go-version }}, ${{ matrix.os }})
     strategy:
       matrix:
         go-version: [1.24.x, 1.25.x]
-    runs-on: ubuntu-latest
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -25,16 +26,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y swig python3-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install swig
 
       - name: Build libcoraza
         run: |
           ./build.sh
           ./configure
           make V=1
+
+      - name: Check SWIG interface sync
+        run: make check-swig-sync
 
       - name: Generate and compile Python SWIG wrapper
         run: |
@@ -45,11 +55,12 @@ jobs:
           make -C examples/python run
 
   swig-java:
-    name: Java SWIG wrapper (${{ matrix.go-version }})
+    name: Java SWIG wrapper (${{ matrix.go-version }}, ${{ matrix.os }})
     strategy:
       matrix:
         go-version: [1.24.x, 1.25.x]
-    runs-on: ubuntu-latest
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -61,16 +72,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y swig default-jdk
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install swig
+          brew install --cask temurin
 
       - name: Build libcoraza
         run: |
           ./build.sh
           ./configure
           make V=1
+
+      - name: Check SWIG interface sync
+        run: make check-swig-sync
 
       - name: Generate and compile Java SWIG wrapper
         run: |

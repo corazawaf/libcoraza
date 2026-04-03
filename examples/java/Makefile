@@ -12,8 +12,17 @@ SWIG_IFACE  = $(TOPDIR)/coraza.i
 CORAZA_HDR  = $(TOPDIR)/coraza/coraza.h
 LIBCORAZA   = $(TOPDIR)/libcoraza.a
 
+ifndef JAVA_HOME
+  $(error JAVA_HOME is not set. Install a JDK and set JAVA_HOME before running make.)
+endif
+
 JAVA_INC    = $(JAVA_HOME)/include
-JAVA_INC_OS = $(JAVA_HOME)/include/linux
+UNAME_S    := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  JAVA_INC_OS = $(JAVA_HOME)/include/darwin
+else
+  JAVA_INC_OS = $(JAVA_HOME)/include/linux
+endif
 
 .PHONY: all run clean
 
