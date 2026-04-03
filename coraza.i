@@ -184,11 +184,13 @@ int coraza_set_debug_log_callback(coraza_waf_config_t cfg, PyObject *cb) {
 %typemap(jstype) (const unsigned char *data, int length) "byte[]"
 %typemap(javain) (const unsigned char *data, int length) "$javainput"
 %typemap(in)     (const unsigned char *data, int length) {
-    $1 = (unsigned char *)JCALL2(GetByteArrayElements, jenv, $input, NULL);
+    /* GetArrayLength must be called before GetPrimitiveArrayCritical: no other
+     * JNI calls are permitted while a critical section is open. */
     $2 = (int)JCALL1(GetArrayLength, jenv, $input);
+    $1 = (unsigned char *)JCALL2(GetPrimitiveArrayCritical, jenv, $input, NULL);
 }
 %typemap(argout) (const unsigned char *data, int length) {
-    JCALL3(ReleaseByteArrayElements, jenv, $input, (jbyte *)$1, JNI_ABORT);
+    JCALL3(ReleasePrimitiveArrayCritical, jenv, $input, (jbyte *)$1, JNI_ABORT);
 }
 
 /*
