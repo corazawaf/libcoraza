@@ -385,7 +385,25 @@ typedef enum coraza_severity_t {
 
 /*
  * Function declarations
+ *
+ * Release the Python GIL for calls that cross into Go and do real work, so
+ * other Python threads can run concurrently.  coraza_append_request_body and
+ * coraza_append_response_body are intentionally excluded: the Python typemap
+ * extracts a raw pointer via PyBytes_AS_STRING / PyByteArray_AS_STRING and
+ * that pointer must remain valid for the duration of the call — releasing the
+ * GIL would allow another thread to resize or deallocate the buffer.
  */
+#ifdef SWIGPYTHON
+%thread coraza_new_waf;
+%thread coraza_rules_merge;
+%thread coraza_process_connection;
+%thread coraza_process_uri;
+%thread coraza_process_request_headers;
+%thread coraza_process_request_body;
+%thread coraza_process_response_headers;
+%thread coraza_process_response_body;
+%thread coraza_process_logging;
+#endif
 
 extern coraza_waf_config_t coraza_new_waf_config();
 extern int coraza_rules_add_file(coraza_waf_config_t c, const char *file);
