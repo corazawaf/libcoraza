@@ -131,6 +131,17 @@ int coraza_set_debug_log_callback(coraza_waf_config_t cfg, PyObject *cb) {
 
 #ifdef SWIGJAVA
 /*
+ * Suppress SWIG's auto-generated wrappers for coraza_set_error_callback and
+ * coraza_set_debug_log_callback.  These are handled entirely via JNI (see the
+ * JNIEXPORT functions below and the %pragma(java) modulecode declarations at
+ * the end of this block).  Without these %ignore directives some SWIG versions
+ * pick up the PyObject* signatures from the Python %inline block and generate
+ * unusable SWIGTYPE_p_Object wrappers.
+ */
+%ignore coraza_set_error_callback;
+%ignore coraza_set_debug_log_callback;
+
+/*
  * Java: load the JNI shared library automatically when the module is
  * first referenced.  The library is expected to be named libcoraza_jni.so
  * (Linux / macOS) or coraza_jni.dll (Windows).
@@ -234,8 +245,16 @@ JNIEXPORT jint JNICALL Java_coraza_coraza_1set_1debug_1log_1callback(
 }
 %}
 
-%native(coraza_set_error_callback)     int coraza_set_error_callback(long long cfg, Object callback);
-%native(coraza_set_debug_log_callback) int coraza_set_debug_log_callback(long long cfg, Object callback);
+/*
+ * Inject native method declarations directly into the coraza Java class.
+ * %native cannot express Java's Object type — using modulecode gives full
+ * control over the Java signature. JNI implementations are in the %{...%}
+ * block above: Java_coraza_coraza_1set_1error_1callback etc.
+ */
+%pragma(java) modulecode=%{
+  public static native int coraza_set_error_callback(long cfg, Object callback);
+  public static native int coraza_set_debug_log_callback(long cfg, Object callback);
+%}
 #endif
 
 /*
