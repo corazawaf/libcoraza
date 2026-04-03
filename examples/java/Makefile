@@ -43,9 +43,11 @@ libcoraza_jni.so: coraza_wrap.c $(LIBCORAZA)
 		-L$(TOPDIR) -lcoraza \
 		-Wno-discarded-qualifiers
 
-# Compile the Java example (depends on the generated Java sources).
-gen/SimpleGet.class: gen/coraza.java libcoraza_jni.so SimpleGet.java
-	$(JAVAC) -d gen/ gen/*.java SimpleGet.java
+# Compile the Java example (depends on the generated Java sources and callback interfaces).
+gen/SimpleGet.class: gen/coraza.java libcoraza_jni.so SimpleGet.java \
+                     CorazaErrorCallback.java CorazaDebugLogCallback.java
+	$(JAVAC) -d gen/ gen/*.java SimpleGet.java \
+	    CorazaErrorCallback.java CorazaDebugLogCallback.java
 
 run: all
 	LD_LIBRARY_PATH=$(TOPDIR):. $(JAVA) \

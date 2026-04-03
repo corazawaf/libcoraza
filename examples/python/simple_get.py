@@ -233,9 +233,54 @@ def test_rules_merge():
     print("  test_rules_merge: PASS")
 
 
+# ---------------------------------------------------------------------------
+# test_callbacks
+# Covers: coraza_set_error_callback, coraza_set_debug_log_callback,
+#         coraza_matched_rule_get_error_log, coraza_matched_rule_get_severity
+# ---------------------------------------------------------------------------
+def test_callbacks():
+    matched_logs = []
+    debug_msgs = []
+
+    def on_error(rule_handle):
+        log = _c.coraza_matched_rule_get_error_log(rule_handle)
+        sev = _c.coraza_matched_rule_get_severity(rule_handle)
+        matched_logs.append((sev, log))
+
+    def on_debug_log(level, message, fields):
+        debug_msgs.append((level, message))
+
+    cfg = _c.coraza_new_waf_config()
+    _c.coraza_rules_add(cfg, _DENY_RULE)
+    _check(_c.coraza_set_error_callback(cfg, on_error) == 0,
+           "coraza_set_error_callback failed")
+    _check(_c.coraza_set_debug_log_callback(cfg, on_debug_log) == 0,
+           "coraza_set_debug_log_callback failed")
+
+    waf = _c.coraza_new_waf(cfg)
+    _check(_c.coraza_free_waf_config(cfg) == 0, "coraza_free_waf_config failed")
+
+    tx = _c.coraza_new_transaction(waf)
+    _c.coraza_process_connection(tx, "127.0.0.1", 12345, "localhost", 80)
+    _c.coraza_process_uri(tx, "/test", "GET", "HTTP/1.1")
+    _c.coraza_process_request_headers(tx)
+    _c.coraza_process_logging(tx)
+    _check(_c.coraza_free_transaction(tx) == 0, "coraza_free_transaction failed")
+    _check(_c.coraza_free_waf(waf) == 0, "coraza_free_waf failed")
+
+    _check(len(matched_logs) > 0,
+           "expected at least one matched rule via error callback")
+    print(f"  Matched rules via callback: {matched_logs}")
+    _check(len(debug_msgs) > 0,
+           "expected at least one debug log message via debug callback")
+    print(f"  Debug messages received: {len(debug_msgs)}")
+    print("  test_callbacks: PASS")
+
+
 if __name__ == "__main__":
     print("Running libcoraza Python SWIG tests...")
     test_lifecycle()
     test_request_body_from_file()
     test_rules_merge()
+    test_callbacks()
     print("All tests passed.")

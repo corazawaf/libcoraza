@@ -17,10 +17,11 @@
 %include <stdint.i>
 
 /*
- * The debug log and error callback types require language-specific
- * function pointer implementations. They are excluded from the default
- * SWIG wrapper to avoid portability issues. Language-specific bindings
- * may re-enable these using %callback or director classes.
+ * The raw coraza_add_*_callback functions take C function pointers and
+ * cannot be wrapped by SWIG directly. They are excluded here; each language
+ * gets its own coraza_set_error_callback / coraza_set_debug_log_callback
+ * wrapper (defined below) that uses the userContext parameter as a
+ * trampoline to call back into the target language runtime.
  */
 %ignore coraza_add_debug_log_callback;
 %ignore coraza_add_error_callback;
@@ -76,6 +77,56 @@
         $2 = (int)PyByteArray_GET_SIZE($input);
     }
 }
+
+/*
+ * Python callback trampolines.
+ *
+ * Use coraza_set_error_callback / coraza_set_debug_log_callback to register
+ * plain Python callables.  The callable is stored as the userContext passed
+ * to the underlying C API, and a static C trampoline calls back into Python
+ * via the CPython C API.
+ *
+ * Signatures expected by the target language:
+ *   on_error(rule_handle: int) -> None
+ *       rule_handle can be passed to coraza_matched_rule_get_error_log() etc.
+ *   on_debug_log(level: int, message: str, fields: str) -> None
+ *
+ * Lifetime note: the callable is Py_INCREF'd on registration and lives for
+ * the lifetime of the WAF.  Keep an external reference and del it after
+ * freeing the WAF if earlier collection is needed.
+ */
+%{
+static void _swig_py_error_trampoline(void *ctx, coraza_matched_rule_t rule) {
+    PyGILState_STATE gs = PyGILState_Ensure();
+    PyObject *cb = (PyObject *)ctx;
+    PyObject *r = PyObject_CallFunction(cb, "k", (unsigned long)rule);
+    Py_XDECREF(r);
+    if (PyErr_Occurred()) PyErr_Print();
+    PyGILState_Release(gs);
+}
+
+static void _swig_py_debug_trampoline(void *ctx, coraza_debug_log_level_t level,
+                                       const char *msg, const char *fields) {
+    PyGILState_STATE gs = PyGILState_Ensure();
+    PyObject *cb = (PyObject *)ctx;
+    PyObject *r = PyObject_CallFunction(cb, "iss", (int)level,
+                                        msg ? msg : "", fields ? fields : "");
+    Py_XDECREF(r);
+    if (PyErr_Occurred()) PyErr_Print();
+    PyGILState_Release(gs);
+}
+%}
+
+%inline %{
+int coraza_set_error_callback(coraza_waf_config_t cfg, PyObject *cb) {
+    Py_INCREF(cb);
+    return coraza_add_error_callback(cfg, _swig_py_error_trampoline, (void *)cb);
+}
+int coraza_set_debug_log_callback(coraza_waf_config_t cfg, PyObject *cb) {
+    Py_INCREF(cb);
+    return coraza_add_debug_log_callback(cfg, _swig_py_debug_trampoline, (void *)cb);
+}
+%}
 #endif
 
 #ifdef SWIGJAVA
@@ -102,6 +153,89 @@
 %typemap(argout) (const unsigned char *data, int length) {
     JCALL3(ReleaseByteArrayElements, jenv, $input, (jbyte *)$1, JNI_ABORT);
 }
+
+/*
+ * Java callback trampolines.
+ *
+ * Implement CorazaErrorCallback / CorazaDebugLogCallback (provided in the
+ * examples/java/ directory) and pass instances to:
+ *   coraza.coraza_set_error_callback(cfg, callback)
+ *   coraza.coraza_set_debug_log_callback(cfg, callback)
+ *
+ * The Java object is stored as a JNI global reference in a heap-allocated
+ * context struct.  A static C trampoline calls back into Java via JNI,
+ * attaching the current thread as a daemon if needed (e.g. Go goroutines).
+ *
+ * Lifetime note: the global reference lives for the lifetime of the WAF.
+ */
+%{
+typedef struct {
+    JavaVM   *jvm;
+    jobject   obj; /* JNI global reference to the Java callback object */
+    jmethodID mid;
+} _swig_java_cb_ctx_t;
+
+static void _swig_java_error_trampoline(void *ctx, coraza_matched_rule_t rule) {
+    _swig_java_cb_ctx_t *jctx = (_swig_java_cb_ctx_t *)ctx;
+    JNIEnv *env = NULL;
+    jboolean attached = JNI_FALSE;
+    if ((*jctx->jvm)->GetEnv(jctx->jvm, (void **)&env, JNI_VERSION_1_6) == JNI_EDETACHED) {
+        (*jctx->jvm)->AttachCurrentThreadAsDaemon(jctx->jvm, (void **)&env, NULL);
+        attached = JNI_TRUE;
+    }
+    (*env)->CallVoidMethod(env, jctx->obj, jctx->mid, (jlong)(uintptr_t)rule);
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionDescribe(env);
+    if (attached) (*jctx->jvm)->DetachCurrentThread(jctx->jvm);
+}
+
+static void _swig_java_debug_trampoline(void *ctx, coraza_debug_log_level_t level,
+                                         const char *msg, const char *fields) {
+    _swig_java_cb_ctx_t *jctx = (_swig_java_cb_ctx_t *)ctx;
+    JNIEnv *env = NULL;
+    jboolean attached = JNI_FALSE;
+    if ((*jctx->jvm)->GetEnv(jctx->jvm, (void **)&env, JNI_VERSION_1_6) == JNI_EDETACHED) {
+        (*jctx->jvm)->AttachCurrentThreadAsDaemon(jctx->jvm, (void **)&env, NULL);
+        attached = JNI_TRUE;
+    }
+    jstring jmsg    = (*env)->NewStringUTF(env, msg    ? msg    : "");
+    jstring jfields = (*env)->NewStringUTF(env, fields ? fields : "");
+    (*env)->CallVoidMethod(env, jctx->obj, jctx->mid, (jint)level, jmsg, jfields);
+    (*env)->DeleteLocalRef(env, jmsg);
+    (*env)->DeleteLocalRef(env, jfields);
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionDescribe(env);
+    if (attached) (*jctx->jvm)->DetachCurrentThread(jctx->jvm);
+}
+
+JNIEXPORT jint JNICALL Java_coraza_coraza_1set_1error_1callback(
+        JNIEnv *env, jclass cls, jlong cfg, jobject cb) {
+    if (!cb) return 1;
+    _swig_java_cb_ctx_t *ctx =
+        (_swig_java_cb_ctx_t *)malloc(sizeof(_swig_java_cb_ctx_t));
+    (*env)->GetJavaVM(env, &ctx->jvm);
+    ctx->obj = (*env)->NewGlobalRef(env, cb);
+    ctx->mid = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, cb),
+                                    "onError", "(J)V");
+    return coraza_add_error_callback((coraza_waf_config_t)(uintptr_t)cfg,
+                                      _swig_java_error_trampoline, ctx);
+}
+
+JNIEXPORT jint JNICALL Java_coraza_coraza_1set_1debug_1log_1callback(
+        JNIEnv *env, jclass cls, jlong cfg, jobject cb) {
+    if (!cb) return 1;
+    _swig_java_cb_ctx_t *ctx =
+        (_swig_java_cb_ctx_t *)malloc(sizeof(_swig_java_cb_ctx_t));
+    (*env)->GetJavaVM(env, &ctx->jvm);
+    ctx->obj = (*env)->NewGlobalRef(env, cb);
+    ctx->mid = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, cb),
+                                    "onDebugLog",
+                                    "(ILjava/lang/String;Ljava/lang/String;)V");
+    return coraza_add_debug_log_callback((coraza_waf_config_t)(uintptr_t)cfg,
+                                          _swig_java_debug_trampoline, ctx);
+}
+%}
+
+%native(coraza_set_error_callback)     int coraza_set_error_callback(long cfg, Object callback);
+%native(coraza_set_debug_log_callback) int coraza_set_debug_log_callback(long cfg, Object callback);
 #endif
 
 /*

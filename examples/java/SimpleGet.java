@@ -1,6 +1,8 @@
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * SimpleGet.java — Java SWIG example for libcoraza.
@@ -229,11 +231,57 @@ public class SimpleGet {
         System.out.println("  testRulesMerge: PASS");
     }
 
+    // -----------------------------------------------------------------------
+    // testCallbacks
+    // Covers: coraza_set_error_callback, coraza_set_debug_log_callback,
+    //         coraza_matched_rule_get_error_log, coraza_matched_rule_get_severity
+    // -----------------------------------------------------------------------
+    static void testCallbacks() {
+        List<String> matchedLogs = new ArrayList<>();
+        List<String> debugMsgs  = new ArrayList<>();
+
+        CorazaErrorCallback onError = ruleHandle -> {
+            String log = coraza.coraza_matched_rule_get_error_log(ruleHandle);
+            int sev    = coraza.coraza_matched_rule_get_severity(ruleHandle).swigValue();
+            matchedLogs.add("sev=" + sev + " " + log);
+        };
+
+        CorazaDebugLogCallback onDebug = (level, message, fields) ->
+            debugMsgs.add("[" + level + "] " + message);
+
+        long cfg = coraza.coraza_new_waf_config();
+        coraza.coraza_rules_add(cfg, DENY_RULE);
+        check(coraza.coraza_set_error_callback(cfg, onError) == 0,
+              "coraza_set_error_callback failed");
+        check(coraza.coraza_set_debug_log_callback(cfg, onDebug) == 0,
+              "coraza_set_debug_log_callback failed");
+
+        long waf = coraza.coraza_new_waf(cfg);
+        check(coraza.coraza_free_waf_config(cfg) == 0, "coraza_free_waf_config failed");
+
+        long tx = coraza.coraza_new_transaction(waf);
+        coraza.coraza_process_connection(tx, "127.0.0.1", 12345, "localhost", 80);
+        coraza.coraza_process_uri(tx, "/test", "GET", "HTTP/1.1");
+        coraza.coraza_process_request_headers(tx);
+        coraza.coraza_process_logging(tx);
+        check(coraza.coraza_free_transaction(tx) == 0, "coraza_free_transaction failed");
+        check(coraza.coraza_free_waf(waf) == 0, "coraza_free_waf failed");
+
+        check(!matchedLogs.isEmpty(),
+              "expected at least one matched rule via error callback");
+        System.out.println("  Matched rules via callback: " + matchedLogs);
+        check(!debugMsgs.isEmpty(),
+              "expected at least one debug log message via debug callback");
+        System.out.println("  Debug messages received: " + debugMsgs.size());
+        System.out.println("  testCallbacks: PASS");
+    }
+
     public static void main(String[] args) throws IOException {
         System.out.println("Running libcoraza Java SWIG tests...");
         testLifecycle();
         testRequestBodyFromFile();
         testRulesMerge();
+        testCallbacks();
         System.out.println("All tests passed.");
     }
 }
