@@ -387,9 +387,8 @@ func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int
 		return 1
 	}
 	defer f.Close()
-	// we read the file in chunks and send it to the engine
+	buf := make([]byte, 32*1024)
 	for {
-		buf := make([]byte, 1024)
 		n, err := f.Read(buf)
 		if err != nil {
 			if err == io.EOF {
