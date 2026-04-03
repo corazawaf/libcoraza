@@ -17,21 +17,31 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Install Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-        with:
-          go-version: ${{ matrix.go-version }}
-
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+
+      # Checkout before setup-go so go.mod is present for module cache key.
+      - name: Install Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: ${{ matrix.go-version }}
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y swig python3-dev
+
+      - name: Cache Homebrew packages (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/Library/Caches/Homebrew/downloads
+          key: brew-swig-python-${{ runner.arch }}-${{ hashFiles('.github/workflows/swig.yml') }}
+          restore-keys: brew-swig-python-${{ runner.arch }}-
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
@@ -63,27 +73,44 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Install Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-        with:
-          go-version: ${{ matrix.go-version }}
-
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
+      # Checkout before setup-go so go.mod is present for module cache key.
+      - name: Install Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      # setup-java handles JDK installation on all platforms via the GitHub
+      # tool cache, avoiding the large Temurin cask download on macOS.
+      - name: Set up Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y swig default-jdk
+          sudo apt-get install -y swig
+
+      - name: Cache Homebrew packages (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/Library/Caches/Homebrew/downloads
+          key: brew-swig-java-${{ runner.arch }}-${{ hashFiles('.github/workflows/swig.yml') }}
+          restore-keys: brew-swig-java-${{ runner.arch }}-
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install autoconf automake libtool swig
-          brew install --cask temurin
 
       - name: Build libcoraza
         run: |
