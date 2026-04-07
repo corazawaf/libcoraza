@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.3.0](https://github.com/corazawaf/libcoraza/compare/v1.2.2...v1.3.0) (2026-04-07)
+
+
+### Features
+
+* add Python and Java callback trampolines via userContext ([ea27028](https://github.com/corazawaf/libcoraza/commit/ea27028cb69637c03a7307c0e13aa2c33fefa0cc))
+* add SWIG support for generating multi-language bindings ([0586007](https://github.com/corazawaf/libcoraza/commit/0586007c4e1dacf8b96821afc6e756c0fad52820))
+
+
+### Bug Fixes
+
+* **ci:** install autotools on macOS runners for SWIG jobs ([01a226c](https://github.com/corazawaf/libcoraza/commit/01a226c5a4b065b9dccb391752a30f04f06489d2))
+* **ci:** use Go 1.25.x/1.26.x to match go.mod minimum version requirement ([cc476dc](https://github.com/corazawaf/libcoraza/commit/cc476dc315049a615afe90c5895096e84b6910b6))
+* correct %native cfg type and debug callback assertion ([15951bf](https://github.com/corazawaf/libcoraza/commit/15951bfb18fa5029699d2026e81ded4b4e10462d))
+* correct SWIG Java type and macOS Python linker flags ([bbf40ab](https://github.com/corazawaf/libcoraza/commit/bbf40ab455220a0f1717b20c9108810498b89848))
+* **deps:** update module github.com/corazawaf/coraza/v3 to v3.7.0 in go.mod ([#86](https://github.com/corazawaf/libcoraza/issues/86)) ([4ec85f9](https://github.com/corazawaf/libcoraza/commit/4ec85f9c9a6750e1e369da0be951ecf693f58348))
+* **java:** make JNI library self-contained and macOS-compatible ([a477889](https://github.com/corazawaf/libcoraza/commit/a477889a492a6c4e68dfa6cd0163ad6612817c1a))
+* SWIG interface and CI gaps from PR review ([716d594](https://github.com/corazawaf/libcoraza/commit/716d5940696248373ab671475b42f440eb332302))
+* **swig:** add %exception to propagate TypeError from callback validators ([65dd99e](https://github.com/corazawaf/libcoraza/commit/65dd99e3d24ce399247abb02cb4f45a149c84de6))
+* **swig:** harden SWIG layer against overflow, null deref, and memory leaks ([6248e60](https://github.com/corazawaf/libcoraza/commit/6248e600b98551af4487906107291fea375a3021))
+* **swig:** ignore callback setters for Java to prevent SWIGTYPE_p_Object conflict ([ebf9a84](https://github.com/corazawaf/libcoraza/commit/ebf9a84973496b32f1ca574210ae0ee14204ce72))
+* use version.txt for autoconf version instead of git-version-gen ([7bed87f](https://github.com/corazawaf/libcoraza/commit/7bed87ff4efc0afb8754ceec288fa234bef0bc16))
+
 ## [1.2.2](https://github.com/corazawaf/libcoraza/compare/v1.2.1...v1.2.2) (2026-03-31)
 
 
