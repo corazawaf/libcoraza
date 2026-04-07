@@ -3,7 +3,7 @@ module github.com/corazawaf/libcoraza
 go 1.25.0
 
 require (
-	github.com/corazawaf/coraza/v3 v3.6.0
+	github.com/corazawaf/coraza/v3 v3.7.0
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90
 	golang.org/x/sync v0.20.0
 )
@@ -16,7 +16,7 @@ require (
 	github.com/gotnospirit/messageformat v0.0.0-20221001023931-dfe49f1eb092 // indirect
 	github.com/kaptinlin/go-i18n v0.1.4 // indirect
 	github.com/kaptinlin/jsonschema v0.4.6 // indirect
-	github.com/magefile/mage v1.15.1-0.20250615140142-78acbaf2e3ae // indirect
+	github.com/magefile/mage v1.17.0 // indirect
 	github.com/petar-dambovaliev/aho-corasick v0.0.0-20250424160509-463d218d4745 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
@@ -24,6 +24,6 @@ require (
 	github.com/valllabh/ocsf-schema-golang v1.0.3 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	rsc.io/binaryregexp v0.2.0 // indirect
 )
