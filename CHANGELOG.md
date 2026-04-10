@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.0](https://github.com/corazawaf/libcoraza/compare/v1.3.0...v1.4.0) (2026-04-10)
+
+
+### Features
+
+* add coraza_is_response_body_processable() API ([18498bd](https://github.com/corazawaf/libcoraza/commit/18498bd8bf517a1f6fcbe6c1205b3002471e13dd))
+* add coraza_is_response_body_processable() API ([8767ebe](https://github.com/corazawaf/libcoraza/commit/8767ebeb4a708b5cf711fd4b3b0ae060c9c2ab71))
+
+
+### Bug Fixes
+
+* **tests:** update expected severity for coraza v3.7.0 ([627e13a](https://github.com/corazawaf/libcoraza/commit/627e13aeca94f1a555dea5ddba3727505cf999b7))
+* **tests:** update expected severity for coraza v3.7.0 ([bc02f8b](https://github.com/corazawaf/libcoraza/commit/bc02f8bf6685df06defb342a61fea3e1436a2e99))
+
 ## [1.3.0](https://github.com/corazawaf/libcoraza/compare/v1.2.2...v1.3.0) (2026-04-07)
 
 
