@@ -339,6 +339,15 @@ func coraza_process_response_headers(t C.coraza_transaction_t, status C.int, pro
 	return 0
 }
 
+//export coraza_is_response_body_processable
+func coraza_is_response_body_processable(t C.coraza_transaction_t) C.int {
+	tx := fromRaw[types.Transaction](t)
+	if tx.IsResponseBodyProcessable() {
+		return 1
+	}
+	return 0
+}
+
 //export coraza_rules_count
 func coraza_rules_count(w C.coraza_waf_t) C.int {
 	handle := fromRaw[*WafHandle](w)
