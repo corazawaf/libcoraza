@@ -97,9 +97,10 @@ coraza.coraza_process_request_headers(tx)
 
 local it = coraza.coraza_intervention(tx)
 if it ~= nil then
+    local status = it.status
     coraza.coraza_free_intervention(it)
     coraza.coraza_free_transaction(tx)
-    ngx.exit(it.status)
+    ngx.exit(status)
 end
 
 coraza.coraza_free_transaction(tx)
