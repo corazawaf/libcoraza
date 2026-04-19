@@ -43,3 +43,15 @@ jobs:
     - name: Install
       run: |
         sudo make V=1 install
+    - name: Run CRS tests with go-ftw
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get install -y libmicrohttpd-dev
+        sudo ldconfig
+        go install github.com/coreruleset/go-ftw/v2@latest # renovate: datasource=go depName=github.com/coreruleset/go-ftw/v2
+        git clone --depth 1 https://github.com/coreruleset/coreruleset.git /tmp/coreruleset
+        gcc -o tests/coraza_httpd tests/coraza_httpd.c $(pkg-config --cflags --libs libmicrohttpd) -lcoraza -I/usr/local/include -L/usr/local/lib
+        printf 'include coraza.conf\ninclude /tmp/coreruleset/crs-setup.conf.example\ninclude /tmp/coreruleset/plugins/empty-before.conf\ninclude /tmp/coreruleset/rules/*.conf\ninclude /tmp/coreruleset/plugins/empty-after.conf\n' > tests/coraza_includes.conf
+        LD_LIBRARY_PATH=/usr/local/lib tests/coraza_httpd tests/coraza_includes.conf 8080 &
+        sleep 2
+        go-ftw run --config tests/ftw.yml --dir /tmp/coreruleset/tests/regression/tests/ --cloud --exclude "^920"
