@@ -147,6 +147,10 @@ static enum MHD_Result handle_request(void *cls,
 
     struct MHD_Response *response = MHD_create_response_from_buffer(
         resp_len, (void*)resp_body, MHD_RESPMEM_MUST_COPY);
+    if (!response) {
+        coraza_free_transaction(tx);
+        return MHD_NO;
+    }
     enum MHD_Result ret = MHD_queue_response(connection, status, response);
     MHD_destroy_response(response);
 
