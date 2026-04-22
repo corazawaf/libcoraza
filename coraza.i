@@ -401,3 +401,10 @@ extern int coraza_free_waf(coraza_waf_t t);
 extern coraza_severity_t coraza_matched_rule_get_severity(
     coraza_matched_rule_t r);
 extern char *coraza_matched_rule_get_error_log(coraza_matched_rule_t r);
+extern int coraza_add_request_headers(coraza_transaction_t t,
+                                      const char *packed, int packed_len,
+                                      int count);
+extern int coraza_add_response_headers(coraza_transaction_t t,
+                                       const char *packed, int packed_len,
+                                       int count);
+extern void coraza_free_string(char *s);
