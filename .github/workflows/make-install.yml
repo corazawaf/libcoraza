@@ -48,10 +48,14 @@ jobs:
       run: |
         sudo apt-get install -y libmicrohttpd-dev
         sudo ldconfig
-        go install github.com/coreruleset/go-ftw/v2@latest # renovate: datasource=go depName=github.com/coreruleset/go-ftw/v2
-        git clone --depth 1 https://github.com/coreruleset/coreruleset.git /tmp/coreruleset
+        # renovate: depName=coreruleset/go-ftw datasource=github-releases
+        go install github.com/coreruleset/go-ftw/v2@v2.1.0
+        # renovate: datasource=github-releases depName=coreruleset/coreruleset
+        CRS_VERSION="4.25.0"
+        curl -sSL "https://github.com/coreruleset/coreruleset/archive/refs/tags/v${CRS_VERSION}.tar.gz" -o /tmp/crs.tar.gz
+        tar xzf /tmp/crs.tar.gz -C /tmp
         gcc -o tests/coraza_httpd tests/coraza_httpd.c $(pkg-config --cflags --libs libmicrohttpd) -lcoraza -I/usr/local/include -L/usr/local/lib
-        printf 'include coraza.conf\ninclude /tmp/coreruleset/crs-setup.conf.example\ninclude /tmp/coreruleset/plugins/empty-before.conf\ninclude /tmp/coreruleset/rules/*.conf\ninclude /tmp/coreruleset/plugins/empty-after.conf\n' > tests/coraza_includes.conf
+        printf 'include coraza.conf\ninclude /tmp/coreruleset-${CRS_VERSION}/crs-setup.conf.example\ninclude /tmp/coreruleset-${CRS_VERSION}/plugins/empty-before.conf\ninclude /tmp/coreruleset-${CRS_VERSION}/rules/*.conf\ninclude /tmp/coreruleset-${CRS_VERSION}/plugins/empty-after.conf\n' > tests/coraza_includes.conf
         LD_LIBRARY_PATH=/usr/local/lib tests/coraza_httpd tests/coraza_includes.conf 8080 &
-        sleep 2
-        go-ftw run --config tests/ftw.yml --dir /tmp/coreruleset/tests/regression/tests/ --cloud --exclude "^920"
+        for i in $(seq 1 10); do curl -sf http://127.0.0.1:8080/ > /dev/null 2>&1 && break; sleep 1; done
+        ~/go/bin/go-ftw run --config tests/ftw.yml --dir /tmp/coreruleset-${CRS_VERSION}/tests/regression/tests/ --cloud --exclude "^920"

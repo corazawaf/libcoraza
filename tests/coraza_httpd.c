@@ -53,7 +53,9 @@ static enum MHD_Result handle_request(void *cls,
 
     /* Accumulate POST data */
     if (*upload_data_size > 0) {
-        ci->data = realloc(ci->data, ci->data_len + *upload_data_size + 1);
+        char *tmp = realloc(ci->data, ci->data_len + *upload_data_size + 1);
+        if (!tmp) return MHD_NO;
+        ci->data = tmp;
         memcpy(ci->data + ci->data_len, upload_data, *upload_data_size);
         ci->data_len += *upload_data_size;
         ci->data[ci->data_len] = '\0';
@@ -63,6 +65,7 @@ static enum MHD_Result handle_request(void *cls,
 
     /* All data received, process with Coraza */
     coraza_transaction_t tx = coraza_new_transaction(waf);
+    if (tx == 0) return MHD_NO;
 
     /* Phase 0: connection */
     coraza_process_connection(tx, "127.0.0.1", 12345, "127.0.0.1", 80);
@@ -117,13 +120,13 @@ static enum MHD_Result handle_request(void *cls,
     } else if (strcmp(url, "/reflect") == 0 && ci->data) {
         resp_body = ci->data;
         resp_len = ci->data_len;
-        coraza_append_response_body(tx, (unsigned char*)resp_body, resp_len);
     } else {
         resp_body = "OK\n";
         resp_len = 3;
     }
 
     if (!denied) {
+        coraza_append_response_body(tx, (unsigned char*)resp_body, resp_len);
         coraza_process_response_body(tx);
         it = coraza_intervention(tx);
         if (it && it->status >= 400) { denied = 1; deny_status = it->status; }
