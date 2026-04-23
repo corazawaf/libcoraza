@@ -330,6 +330,12 @@ typedef struct coraza_intervention_t {
     char *data;
 } coraza_intervention_t;
 
+typedef enum coraza_result_t {
+    CORAZA_ERROR = -1,
+    CORAZA_OK = 0,
+    CORAZA_INTERRUPTION = 1,
+} coraza_result_t;
+
 typedef enum coraza_debug_log_level_t {
     CORAZA_DEBUG_LOG_LEVEL_UNKNOWN,
     CORAZA_DEBUG_LOG_LEVEL_TRACE,

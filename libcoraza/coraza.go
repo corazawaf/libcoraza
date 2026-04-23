@@ -22,6 +22,12 @@ typedef uintptr_t coraza_waf_t;
 typedef uintptr_t coraza_transaction_t;
 typedef uintptr_t coraza_matched_rule_t;
 
+typedef enum coraza_result_t {
+	CORAZA_ERROR = -1,
+	CORAZA_OK = 0,
+	CORAZA_INTERRUPTION = 1,
+} coraza_result_t;
+
 typedef enum coraza_debug_log_level_t {
 	CORAZA_DEBUG_LOG_LEVEL_UNKNOWN,
 	CORAZA_DEBUG_LOG_LEVEL_TRACE,
@@ -241,12 +247,12 @@ func coraza_process_request_body(t C.coraza_transaction_t) C.int {
 	tx := fromRaw[types.Transaction](t)
 	it, err := tx.ProcessRequestBody()
 	if err != nil {
-		return -1
+		return C.CORAZA_ERROR
 	}
 	if it != nil {
-		return 1
+		return C.CORAZA_INTERRUPTION
 	}
-	return 0
+	return C.CORAZA_OK
 }
 
 //export coraza_update_status_code
@@ -322,9 +328,9 @@ func coraza_add_request_headers(t C.coraza_transaction_t, packed *C.char, packed
 func coraza_process_request_headers(t C.coraza_transaction_t) C.int {
 	tx := fromRaw[types.Transaction](t)
 	if it := tx.ProcessRequestHeaders(); it != nil {
-		return 1
+		return C.CORAZA_INTERRUPTION
 	}
-	return 0
+	return C.CORAZA_OK
 }
 
 //export coraza_process_logging
@@ -408,21 +414,21 @@ func coraza_process_response_body(t C.coraza_transaction_t) C.int {
 	tx := fromRaw[types.Transaction](t)
 	it, err := tx.ProcessResponseBody()
 	if err != nil {
-		return -1
+		return C.CORAZA_ERROR
 	}
 	if it != nil {
-		return 1
+		return C.CORAZA_INTERRUPTION
 	}
-	return 0
+	return C.CORAZA_OK
 }
 
 //export coraza_process_response_headers
 func coraza_process_response_headers(t C.coraza_transaction_t, status C.int, proto *C.char) C.int {
 	tx := fromRaw[types.Transaction](t)
 	if it := tx.ProcessResponseHeaders(int(status), C.GoString(proto)); it != nil {
-		return 1
+		return C.CORAZA_INTERRUPTION
 	}
-	return 0
+	return C.CORAZA_OK
 }
 
 //export coraza_is_response_body_processable
