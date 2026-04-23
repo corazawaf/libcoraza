@@ -10,7 +10,7 @@ AC_INIT([libcoraza],
 AC_CONFIG_MACRO_DIRS([macros build-aux])
 AC_CONFIG_HEADERS([config.h])
 
-AM_INIT_AUTOMAKE([-Wall -Werror])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 dnl Disable verbose mode
 dnl To enable, use --disable-silent-rules
