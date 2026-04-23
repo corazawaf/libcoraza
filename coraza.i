@@ -25,6 +25,7 @@
  */
 %ignore coraza_add_debug_log_callback;
 %ignore coraza_add_error_callback;
+%ignore coraza_free_string;
 
 /*
  * Handle the char** output parameter for error messages.

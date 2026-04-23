@@ -108,9 +108,9 @@ def test_lifecycle():
     ret = _c.coraza_process_uri(tx, "/someurl?foo=bar", "GET", "HTTP/1.1")
     _check(ret == 0, f"coraza_process_uri failed: {ret}")
 
-    # coraza_process_request_headers (returns 1 when interrupted by a deny rule)
+    # coraza_process_request_headers (returns CORAZA_INTERRUPTION for the deny rule)
     ret = _c.coraza_process_request_headers(tx)
-    _check(ret >= 0, f"coraza_process_request_headers failed: {ret}")
+    _check(ret == 1, f"coraza_process_request_headers: expected CORAZA_INTERRUPTION (1), got {ret}")
 
     # coraza_append_request_body (bytes typemap: single argument)
     body = b"hello=world"

@@ -102,9 +102,9 @@ public class SimpleGet {
             ret = coraza.coraza_process_uri(tx, "/someurl?foo=bar", "GET", "HTTP/1.1");
             check(ret == 0, "coraza_process_uri failed: " + ret);
 
-            // coraza_process_request_headers (returns 1 when interrupted by a deny rule)
+            // coraza_process_request_headers (returns CORAZA_INTERRUPTION for the deny rule)
             ret = coraza.coraza_process_request_headers(tx);
-            check(ret >= 0, "coraza_process_request_headers failed: " + ret);
+            check(ret == 1, "coraza_process_request_headers: expected CORAZA_INTERRUPTION (1), got " + ret);
 
             // coraza_append_request_body (byte[] typemap: single array arg)
             ret = coraza.coraza_append_request_body(tx, "hello=world".getBytes());
