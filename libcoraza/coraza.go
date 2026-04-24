@@ -312,7 +312,11 @@ func coraza_add_request_headers(t C.coraza_transaction_t, packed *C.char, packed
 		if off+4 > len(buf) {
 			return C.CORAZA_ERROR
 		}
-		valueLen := int(uint32(buf[off])<<24 | uint32(buf[off+1])<<16 | uint32(buf[off+2])<<8 | uint32(buf[off+3]))
+		vl := uint32(buf[off])<<24 | uint32(buf[off+1])<<16 | uint32(buf[off+2])<<8 | uint32(buf[off+3])
+		if vl > uint32(len(buf)) {
+			return C.CORAZA_ERROR
+		}
+		valueLen := int(vl)
 		off += 4
 		if off+valueLen > len(buf) {
 			return C.CORAZA_ERROR
@@ -388,7 +392,11 @@ func coraza_add_response_headers(t C.coraza_transaction_t, packed *C.char, packe
 		if off+4 > len(buf) {
 			return C.CORAZA_ERROR
 		}
-		valueLen := int(uint32(buf[off])<<24 | uint32(buf[off+1])<<16 | uint32(buf[off+2])<<8 | uint32(buf[off+3]))
+		vl := uint32(buf[off])<<24 | uint32(buf[off+1])<<16 | uint32(buf[off+2])<<8 | uint32(buf[off+3])
+		if vl > uint32(len(buf)) {
+			return C.CORAZA_ERROR
+		}
+		valueLen := int(vl)
 		off += 4
 		if off+valueLen > len(buf) {
 			return C.CORAZA_ERROR
