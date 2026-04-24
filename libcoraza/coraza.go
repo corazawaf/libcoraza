@@ -293,35 +293,35 @@ func coraza_add_request_header(t C.coraza_transaction_t, name *C.char, name_len 
 //export coraza_add_request_headers
 func coraza_add_request_headers(t C.coraza_transaction_t, packed *C.char, packed_len C.int, count C.int) C.int {
 	if packed_len < 0 || count < 0 {
-		return -1
+		return C.CORAZA_ERROR
 	}
 	tx := fromRaw[types.Transaction](t)
 	buf := C.GoBytes(unsafe.Pointer(packed), packed_len)
 	off := 0
 	for i := 0; i < int(count); i++ {
 		if off+2 > len(buf) {
-			return -1
+			return C.CORAZA_ERROR
 		}
 		nameLen := int(uint16(buf[off])<<8 | uint16(buf[off+1]))
 		off += 2
 		if off+nameLen > len(buf) {
-			return -1
+			return C.CORAZA_ERROR
 		}
 		name := string(buf[off : off+nameLen])
 		off += nameLen
 		if off+4 > len(buf) {
-			return -1
+			return C.CORAZA_ERROR
 		}
 		valueLen := int(uint32(buf[off])<<24 | uint32(buf[off+1])<<16 | uint32(buf[off+2])<<8 | uint32(buf[off+3]))
 		off += 4
 		if off+valueLen > len(buf) {
-			return -1
+			return C.CORAZA_ERROR
 		}
 		value := string(buf[off : off+valueLen])
 		off += valueLen
 		tx.AddRequestHeader(name, value)
 	}
-	return 0
+	return C.CORAZA_OK
 }
 
 //export coraza_process_request_headers
@@ -369,35 +369,35 @@ func coraza_add_response_header(t C.coraza_transaction_t, name *C.char, name_len
 //export coraza_add_response_headers
 func coraza_add_response_headers(t C.coraza_transaction_t, packed *C.char, packed_len C.int, count C.int) C.int {
 	if packed_len < 0 || count < 0 {
-		return -1
+		return C.CORAZA_ERROR
 	}
 	tx := fromRaw[types.Transaction](t)
 	buf := C.GoBytes(unsafe.Pointer(packed), packed_len)
 	off := 0
 	for i := 0; i < int(count); i++ {
 		if off+2 > len(buf) {
-			return -1
+			return C.CORAZA_ERROR
 		}
 		nameLen := int(uint16(buf[off])<<8 | uint16(buf[off+1]))
 		off += 2
 		if off+nameLen > len(buf) {
-			return -1
+			return C.CORAZA_ERROR
 		}
 		name := string(buf[off : off+nameLen])
 		off += nameLen
 		if off+4 > len(buf) {
-			return -1
+			return C.CORAZA_ERROR
 		}
 		valueLen := int(uint32(buf[off])<<24 | uint32(buf[off+1])<<16 | uint32(buf[off+2])<<8 | uint32(buf[off+3]))
 		off += 4
 		if off+valueLen > len(buf) {
-			return -1
+			return C.CORAZA_ERROR
 		}
 		value := string(buf[off : off+valueLen])
 		off += valueLen
 		tx.AddResponseHeader(name, value)
 	}
-	return 0
+	return C.CORAZA_OK
 }
 
 //export coraza_append_response_body

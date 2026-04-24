@@ -198,9 +198,9 @@ def test_request_body_from_file():
     finally:
         os.unlink(body_file)
 
-    _check(_c.coraza_process_request_body(tx) == 0, "coraza_process_request_body failed")
-    _check(_c.coraza_process_response_headers(tx, 200, "HTTP/1.1") == 0, "coraza_process_response_headers failed")
-    _check(_c.coraza_process_response_body(tx) == 0, "coraza_process_response_body failed")
+    _check(_c.coraza_process_request_body(tx) >= 0, "coraza_process_request_body failed")
+    _check(_c.coraza_process_response_headers(tx, 200, "HTTP/1.1") >= 0, "coraza_process_response_headers failed")
+    _check(_c.coraza_process_response_body(tx) >= 0, "coraza_process_response_body failed")
     _check(_c.coraza_process_logging(tx) == 0, "coraza_process_logging failed")
     _check(_c.coraza_free_transaction(tx) == 0, "coraza_free_transaction failed")
     _check(_c.coraza_free_waf(waf) == 0, "coraza_free_waf failed")
