@@ -25,6 +25,7 @@
  */
 %ignore coraza_add_debug_log_callback;
 %ignore coraza_add_error_callback;
+%ignore coraza_free_string;
 
 /*
  * Handle the char** output parameter for error messages.
@@ -330,6 +331,12 @@ typedef struct coraza_intervention_t {
     char *data;
 } coraza_intervention_t;
 
+typedef enum coraza_result_t {
+    CORAZA_ERROR = -1,
+    CORAZA_OK = 0,
+    CORAZA_INTERRUPTION = 1,
+} coraza_result_t;
+
 typedef enum coraza_debug_log_level_t {
     CORAZA_DEBUG_LOG_LEVEL_UNKNOWN,
     CORAZA_DEBUG_LOG_LEVEL_TRACE,
@@ -401,3 +408,10 @@ extern int coraza_free_waf(coraza_waf_t t);
 extern coraza_severity_t coraza_matched_rule_get_severity(
     coraza_matched_rule_t r);
 extern char *coraza_matched_rule_get_error_log(coraza_matched_rule_t r);
+extern int coraza_add_request_headers(coraza_transaction_t t,
+                                      const char *packed, int packed_len,
+                                      int count);
+extern int coraza_add_response_headers(coraza_transaction_t t,
+                                       const char *packed, int packed_len,
+                                       int count);
+extern void coraza_free_string(char *s);

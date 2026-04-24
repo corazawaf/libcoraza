@@ -108,9 +108,9 @@ def test_lifecycle():
     ret = _c.coraza_process_uri(tx, "/someurl?foo=bar", "GET", "HTTP/1.1")
     _check(ret == 0, f"coraza_process_uri failed: {ret}")
 
-    # coraza_process_request_headers
+    # coraza_process_request_headers (returns CORAZA_INTERRUPTION for the deny rule)
     ret = _c.coraza_process_request_headers(tx)
-    _check(ret == 0, f"coraza_process_request_headers failed: {ret}")
+    _check(ret == 1, f"coraza_process_request_headers: expected CORAZA_INTERRUPTION (1), got {ret}")
 
     # coraza_append_request_body (bytes typemap: single argument)
     body = b"hello=world"
@@ -119,11 +119,11 @@ def test_lifecycle():
 
     # coraza_process_request_body
     ret = _c.coraza_process_request_body(tx)
-    _check(ret == 0, f"coraza_process_request_body failed: {ret}")
+    _check(ret >= 0, f"coraza_process_request_body failed: {ret}")
 
     # coraza_process_response_headers
     ret = _c.coraza_process_response_headers(tx, 200, "HTTP/1.1")
-    _check(ret == 0, f"coraza_process_response_headers failed: {ret}")
+    _check(ret >= 0, f"coraza_process_response_headers failed: {ret}")
 
     # coraza_add_response_header
     cname, cvalue = "Content-Type", "text/plain"
@@ -139,7 +139,7 @@ def test_lifecycle():
 
     # coraza_process_response_body
     ret = _c.coraza_process_response_body(tx)
-    _check(ret == 0, f"coraza_process_response_body failed: {ret}")
+    _check(ret >= 0, f"coraza_process_response_body failed: {ret}")
 
     # coraza_update_status_code
     _c.coraza_update_status_code(tx, 200)

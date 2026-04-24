@@ -22,6 +22,12 @@ typedef uintptr_t coraza_waf_t;
 typedef uintptr_t coraza_transaction_t;
 typedef uintptr_t coraza_matched_rule_t;
 
+typedef enum coraza_result_t {
+	CORAZA_ERROR = -1,
+	CORAZA_OK = 0,
+	CORAZA_INTERRUPTION = 1,
+} coraza_result_t;
+
 typedef enum coraza_debug_log_level_t {
 	CORAZA_DEBUG_LOG_LEVEL_UNKNOWN,
 	CORAZA_DEBUG_LOG_LEVEL_TRACE,
@@ -239,10 +245,14 @@ func coraza_process_connection(t C.coraza_transaction_t, sourceAddress *C.char, 
 //export coraza_process_request_body
 func coraza_process_request_body(t C.coraza_transaction_t) C.int {
 	tx := fromRaw[types.Transaction](t)
-	if _, err := tx.ProcessRequestBody(); err != nil {
-		return 1
+	it, err := tx.ProcessRequestBody()
+	if err != nil {
+		return C.CORAZA_ERROR
 	}
-	return 0
+	if it != nil {
+		return C.CORAZA_INTERRUPTION
+	}
+	return C.CORAZA_OK
 }
 
 //export coraza_update_status_code
@@ -277,11 +287,54 @@ func coraza_add_request_header(t C.coraza_transaction_t, name *C.char, name_len 
 	return 0
 }
 
+// coraza_add_request_headers adds multiple request headers from a packed buffer.
+// Encoding: [name_len u16][name_bytes][value_len u32][value_bytes] × count
+//
+//export coraza_add_request_headers
+func coraza_add_request_headers(t C.coraza_transaction_t, packed *C.char, packed_len C.int, count C.int) C.int {
+	if packed_len < 0 || count < 0 {
+		return C.CORAZA_ERROR
+	}
+	tx := fromRaw[types.Transaction](t)
+	buf := C.GoBytes(unsafe.Pointer(packed), packed_len)
+	off := 0
+	for i := 0; i < int(count); i++ {
+		if off+2 > len(buf) {
+			return C.CORAZA_ERROR
+		}
+		nameLen := int(uint16(buf[off])<<8 | uint16(buf[off+1]))
+		off += 2
+		if off+nameLen > len(buf) {
+			return C.CORAZA_ERROR
+		}
+		name := string(buf[off : off+nameLen])
+		off += nameLen
+		if off+4 > len(buf) {
+			return C.CORAZA_ERROR
+		}
+		vl := uint32(buf[off])<<24 | uint32(buf[off+1])<<16 | uint32(buf[off+2])<<8 | uint32(buf[off+3])
+		if vl > uint32(len(buf)) {
+			return C.CORAZA_ERROR
+		}
+		valueLen := int(vl)
+		off += 4
+		if off+valueLen > len(buf) {
+			return C.CORAZA_ERROR
+		}
+		value := string(buf[off : off+valueLen])
+		off += valueLen
+		tx.AddRequestHeader(name, value)
+	}
+	return C.CORAZA_OK
+}
+
 //export coraza_process_request_headers
 func coraza_process_request_headers(t C.coraza_transaction_t) C.int {
 	tx := fromRaw[types.Transaction](t)
-	tx.ProcessRequestHeaders()
-	return 0
+	if it := tx.ProcessRequestHeaders(); it != nil {
+		return C.CORAZA_INTERRUPTION
+	}
+	return C.CORAZA_OK
 }
 
 //export coraza_process_logging
@@ -314,6 +367,47 @@ func coraza_add_response_header(t C.coraza_transaction_t, name *C.char, name_len
 	return 0
 }
 
+// coraza_add_response_headers adds multiple response headers from a packed buffer.
+// Same encoding as coraza_add_request_headers.
+//
+//export coraza_add_response_headers
+func coraza_add_response_headers(t C.coraza_transaction_t, packed *C.char, packed_len C.int, count C.int) C.int {
+	if packed_len < 0 || count < 0 {
+		return C.CORAZA_ERROR
+	}
+	tx := fromRaw[types.Transaction](t)
+	buf := C.GoBytes(unsafe.Pointer(packed), packed_len)
+	off := 0
+	for i := 0; i < int(count); i++ {
+		if off+2 > len(buf) {
+			return C.CORAZA_ERROR
+		}
+		nameLen := int(uint16(buf[off])<<8 | uint16(buf[off+1]))
+		off += 2
+		if off+nameLen > len(buf) {
+			return C.CORAZA_ERROR
+		}
+		name := string(buf[off : off+nameLen])
+		off += nameLen
+		if off+4 > len(buf) {
+			return C.CORAZA_ERROR
+		}
+		vl := uint32(buf[off])<<24 | uint32(buf[off+1])<<16 | uint32(buf[off+2])<<8 | uint32(buf[off+3])
+		if vl > uint32(len(buf)) {
+			return C.CORAZA_ERROR
+		}
+		valueLen := int(vl)
+		off += 4
+		if off+valueLen > len(buf) {
+			return C.CORAZA_ERROR
+		}
+		value := string(buf[off : off+valueLen])
+		off += valueLen
+		tx.AddResponseHeader(name, value)
+	}
+	return C.CORAZA_OK
+}
+
 //export coraza_append_response_body
 func coraza_append_response_body(t C.coraza_transaction_t, data *C.uchar, length C.int) C.int {
 	tx := fromRaw[types.Transaction](t)
@@ -326,17 +420,23 @@ func coraza_append_response_body(t C.coraza_transaction_t, data *C.uchar, length
 //export coraza_process_response_body
 func coraza_process_response_body(t C.coraza_transaction_t) C.int {
 	tx := fromRaw[types.Transaction](t)
-	if _, err := tx.ProcessResponseBody(); err != nil {
-		return 1
+	it, err := tx.ProcessResponseBody()
+	if err != nil {
+		return C.CORAZA_ERROR
 	}
-	return 0
+	if it != nil {
+		return C.CORAZA_INTERRUPTION
+	}
+	return C.CORAZA_OK
 }
 
 //export coraza_process_response_headers
 func coraza_process_response_headers(t C.coraza_transaction_t, status C.int, proto *C.char) C.int {
 	tx := fromRaw[types.Transaction](t)
-	tx.ProcessResponseHeaders(int(status), C.GoString(proto))
-	return 0
+	if it := tx.ProcessResponseHeaders(int(status), C.GoString(proto)); it != nil {
+		return C.CORAZA_INTERRUPTION
+	}
+	return C.CORAZA_OK
 }
 
 //export coraza_is_response_body_processable
@@ -415,6 +515,15 @@ func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int
 func coraza_free_waf(t C.coraza_waf_t) C.int {
 	deleteRaw(t)
 	return 0
+}
+
+// coraza_free_string frees a string returned by libcoraza (e.g. from
+// coraza_matched_rule_get_error_log). Callers must use this instead of
+// libc free() to avoid allocator mismatches on Windows.
+//
+//export coraza_free_string
+func coraza_free_string(s *C.char) {
+	C.free(unsafe.Pointer(s))
 }
 
 /**
