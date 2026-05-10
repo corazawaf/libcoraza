@@ -575,6 +575,9 @@ func TestInterventionRedirect(t *testing.T) {
 	if stringFromC(intervention.data) != "http://example.com" {
 		t.Fatalf("Expected data 'http://example.com', got '%s'", stringFromC(intervention.data))
 	}
+	if intervention.rule_id != 1 {
+		t.Fatalf("Expected intervention.rule_id 1, got %d", intervention.rule_id)
+	}
 
 	rv := coraza_free_intervention(intervention)
 	if rv != 0 {
@@ -601,10 +604,80 @@ func TestInterventionDenyNoData(t *testing.T) {
 	if intervention.data != nil {
 		t.Fatal("Expected nil data field for deny action")
 	}
+	if intervention.rule_id != 1 {
+		t.Fatalf("Expected intervention.rule_id 1, got %d", intervention.rule_id)
+	}
 
 	rv := coraza_free_intervention(intervention)
 	if rv != 0 {
 		t.Fatalf("coraza_free_intervention expected 0, got %d", rv)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+// TestInterventionRuleID exercises the rule_id field on coraza_intervention_t
+// across a non-trivial set of rule IDs, including one that mirrors the
+// shape used by OWASP CRS anomaly-evaluation rules (id:949110). Ensures
+// the field is populated regardless of the rule-id magnitude.
+func TestInterventionRuleID(t *testing.T) {
+	cases := []struct {
+		ruleID int
+	}{
+		{1},
+		{42},
+		{1000},
+		{949110}, // CRS-shape: REQUEST-949-BLOCKING-EVALUATION
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("id_%d", tc.ruleID), func(t *testing.T) {
+			config := coraza_new_waf_config()
+			rule := fmt.Sprintf(
+				`SecRule REMOTE_ADDR "127.0.0.1" "id:%d,phase:1,deny,status:403"`,
+				tc.ruleID,
+			)
+			coraza_rules_add(config, stringToC(rule))
+			waf := coraza_new_waf(config, nil)
+			coraza_free_waf_config(config)
+			tt := coraza_new_transaction(waf)
+
+			coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80)
+			coraza_process_request_headers(tt)
+
+			intervention := coraza_intervention(tt)
+			if intervention == nil {
+				t.Fatalf("Expected non-nil intervention for rule id:%d", tc.ruleID)
+			}
+			if int(intervention.rule_id) != tc.ruleID {
+				t.Errorf("Expected intervention.rule_id %d, got %d", tc.ruleID, intervention.rule_id)
+			}
+
+			coraza_free_intervention(intervention)
+			coraza_free_transaction(tt)
+			coraza_free_waf(waf)
+		})
+	}
+}
+
+// TestInterventionNoRuleIDForNoMatch confirms that when no rule fires,
+// the intervention is nil — the rule_id field has no semantic meaning
+// to test in isolation (there's no intervention to read it from).
+// Included for symmetry with the documented "id:0 means unset" convention
+// in the patch commit message.
+func TestInterventionNoRuleIDForNoMatch(t *testing.T) {
+	config := coraza_new_waf_config()
+	coraza_rules_add(config, stringToC(`SecRule REMOTE_ADDR "192.168.99.99" "id:1,phase:1,deny,status:403"`))
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+
+	coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80) // doesn't match
+	coraza_process_request_headers(tt)
+
+	intervention := coraza_intervention(tt)
+	if intervention != nil {
+		t.Fatal("Expected nil intervention when no rule matched")
 	}
 	coraza_free_transaction(tt)
 	coraza_free_waf(waf)
@@ -848,8 +921,51 @@ func TestMatchedRuleFunctions(t *testing.T) {
 		t.Fatal("Expected non-empty error log from matched rule")
 	}
 
+	// Test coraza_matched_rule_get_id - should match the seclang id:N value.
+	if got := int(coraza_matched_rule_get_id(handle)); got != 1 {
+		t.Fatalf("Expected matched rule id 1, got %d", got)
+	}
+
 	coraza_free_transaction(tt)
 	coraza_free_waf(waf)
+}
+
+// TestMatchedRuleIDs exercises coraza_matched_rule_get_id across a spread of
+// rule ids, mirroring TestMatchedRuleSeverities. Same shape: one rule per
+// case, capture the MatchedRule via the error-callback path, assert the
+// getter returns the seclang `id:N` value.
+func TestMatchedRuleIDs(t *testing.T) {
+	cases := []int{1, 42, 1000, 949110}
+	for _, want := range cases {
+		want := want
+		t.Run(fmt.Sprintf("id_%d", want), func(t *testing.T) {
+			config := coraza_new_waf_config()
+			rule := fmt.Sprintf(
+				`SecRule REMOTE_ADDR "127.0.0.1" "id:%d,phase:1,deny,log,status:403"`,
+				want,
+			)
+			coraza_rules_add(config, stringToC(rule))
+			getHandle, releaseHandle := captureMatchedRule(config)
+			defer releaseHandle()
+
+			waf := coraza_new_waf(config, nil)
+			coraza_free_waf_config(config)
+			tt := coraza_new_transaction(waf)
+			coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80)
+			coraza_process_request_headers(tt)
+
+			handle := getHandle()
+			if handle == 0 {
+				t.Fatalf("Expected matched rule handle for id %d", want)
+			}
+			if got := int(coraza_matched_rule_get_id(handle)); got != want {
+				t.Errorf("rule id %d: expected getter to return %d, got %d", want, want, got)
+			}
+
+			coraza_free_transaction(tt)
+			coraza_free_waf(waf)
+		})
+	}
 }
 
 // TestMatchedRuleSeverities exercises coraza_matched_rule_get_severity across
