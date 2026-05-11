@@ -15,6 +15,7 @@ typedef struct coraza_intervention_t
     int pause;
     int disruptive;
 	char *data;
+    int rule_id;
 } coraza_intervention_t;
 
 typedef uintptr_t coraza_waf_config_t;
@@ -228,6 +229,7 @@ func coraza_intervention(t C.coraza_transaction_t) *C.coraza_intervention_t {
 		mem.data = C.CString(tx.Interruption().Data)
 	}
 	mem.status = C.int(tx.Interruption().Status)
+	mem.rule_id = C.int(tx.Interruption().RuleID)
 	return mem
 }
 
@@ -565,6 +567,18 @@ func coraza_matched_rule_get_error_log(r C.coraza_matched_rule_t) *C.char {
 	rule := fromRaw[types.MatchedRule](r)
 	cMsg := C.CString(rule.ErrorLog())
 	return cMsg
+}
+
+/*
+ * Returns the numeric ID of the rule that produced this matched rule
+ * (the integer from the seclang `id:` action). 0 if the rule has no
+ * configured ID — Coraza requires IDs in production rule sets but the
+ * type allows zero for synthetic / runtime-built rules.
+ */
+//export coraza_matched_rule_get_id
+func coraza_matched_rule_get_id(r C.coraza_matched_rule_t) C.int {
+	rule := fromRaw[types.MatchedRule](r)
+	return C.int(rule.Rule().ID())
 }
 
 /*
