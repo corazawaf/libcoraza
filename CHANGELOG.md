@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.0](https://github.com/corazawaf/libcoraza/compare/v1.5.0...v1.6.0) (2026-05-11)
+
+
+### Features
+
+* surface RuleID and add coraza_matched_rule_get_id ([efb02f7](https://github.com/corazawaf/libcoraza/commit/efb02f738933e695ba048edb1f8e2d54497e8908))
+* surface RuleID on intervention + add coraza_matched_rule_get_id ([3aae672](https://github.com/corazawaf/libcoraza/commit/3aae672b11aa931d3fa5d1535a64c838b67cdea1))
+
+
+### Bug Fixes
+
+* declare coraza_matched_rule_get_id and rule_id in coraza.i ([fc91eea](https://github.com/corazawaf/libcoraza/commit/fc91eeaa1c29bc9c4e85cf9e568c2e27e8cc6068))
+
 ## [1.5.0](https://github.com/corazawaf/libcoraza/compare/v1.4.0...v1.5.0) (2026-05-10)
 
 
