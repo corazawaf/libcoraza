@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.5.0](https://github.com/corazawaf/libcoraza/compare/v1.4.0...v1.5.0) (2026-05-10)
+
+
+### Features
+
+* **api:** return 1 on disruption, add bulk headers, add coraza_free_string ([737af66](https://github.com/corazawaf/libcoraza/commit/737af66a95993a98a1f76578d6f69168bdc4e7b6))
+
+
+### Bug Fixes
+
+* add foreign to AM_INIT_AUTOMAKE ([77ead66](https://github.com/corazawaf/libcoraza/commit/77ead667915d4d38e9868a87a99a7c58d1fa005a))
+* add foreign to AM_INIT_AUTOMAKE to not require ChangeLog ([8f0d4df](https://github.com/corazawaf/libcoraza/commit/8f0d4df655e5a41aeb89bba39d6a4084b9d1d6f8))
+
 ## [1.4.0](https://github.com/corazawaf/libcoraza/compare/v1.3.0...v1.4.0) (2026-04-10)
 
 
