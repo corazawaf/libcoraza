@@ -329,6 +329,7 @@ typedef struct coraza_intervention_t {
     int pause;
     int disruptive;
     char *data;
+    int rule_id;
 } coraza_intervention_t;
 
 typedef enum coraza_result_t {
@@ -407,6 +408,7 @@ extern int coraza_request_body_from_file(coraza_transaction_t t,
 extern int coraza_free_waf(coraza_waf_t t);
 extern coraza_severity_t coraza_matched_rule_get_severity(
     coraza_matched_rule_t r);
+extern int coraza_matched_rule_get_id(coraza_matched_rule_t r);
 extern char *coraza_matched_rule_get_error_log(coraza_matched_rule_t r);
 extern int coraza_add_request_headers(coraza_transaction_t t,
                                       const char *packed, int packed_len,
