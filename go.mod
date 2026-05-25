@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/corazawaf/coraza/v3 v3.7.0
-	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
+	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
 	golang.org/x/sync v0.20.0
 )
 
