@@ -10,6 +10,7 @@
 %{
 /* Include the actual generated header in the wrapper code */
 #include <stdlib.h>
+#include <limits.h>   /* INT_MAX, used by the byte-buffer typemaps */
 #include "coraza/coraza.h"
 %}
 
