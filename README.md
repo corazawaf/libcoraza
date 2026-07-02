@@ -20,6 +20,22 @@ Download the library source:
 git clone https://github.com/corazawaf/libcoraza libcoraza
 ```
 
+## Install from PPA (Ubuntu)
+
+Prebuilt packages are available from a Launchpad PPA:
+https://launchpad.net/~pierrepomes/+archive/ubuntu/libcoraza
+
+```shell
+# add-apt-repository lives in software-properties-common on minimal images
+sudo apt install software-properties-common
+sudo add-apt-repository ppa:pierrepomes/libcoraza
+sudo apt update
+sudo apt install libcoraza1      # runtime library
+sudo apt install libcoraza-dev   # headers, for building connectors
+```
+
+Built for Ubuntu 22.04 (jammy), 24.04 (noble), 26.04 (resolute) and 26.10 (stonking).
+
 ## Build
 
 Build the source:
