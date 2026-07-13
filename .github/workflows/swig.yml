@@ -24,7 +24,7 @@ jobs:
 
       # Checkout before setup-go so go.mod is present for module cache key.
       - name: Install Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -36,7 +36,7 @@ jobs:
 
       - name: Cache Homebrew packages (macOS)
         if: runner.os == 'macOS'
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/Library/Caches/Homebrew/downloads
@@ -80,14 +80,14 @@ jobs:
 
       # Checkout before setup-go so go.mod is present for module cache key.
       - name: Install Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ matrix.go-version }}
 
       # setup-java handles JDK installation on all platforms via the GitHub
       # tool cache, avoiding the large Temurin cask download on macOS.
       - name: Set up Java
-        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -100,7 +100,7 @@ jobs:
 
       - name: Cache Homebrew packages (macOS)
         if: runner.os == 'macOS'
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/Library/Caches/Homebrew/downloads
