@@ -477,21 +477,35 @@ func TestIsRequestBodyAccessible(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			config := coraza_new_waf_config()
+			t.Cleanup(func() { coraza_free_waf_config(config) })
 			if rv := coraza_rules_add(config, stringToC(tc.directives)); rv != 0 {
 				t.Fatalf("coraza_rules_add(%q) failed: %d", tc.directives, rv)
 			}
 			waf := coraza_new_waf(config, nil)
-			coraza_free_waf_config(config)
 			if waf == 0 {
 				t.Fatalf("WAF creation failed for %q", tc.directives)
 			}
+			t.Cleanup(func() { coraza_free_waf(waf) })
 			tt := coraza_new_transaction(waf)
+			t.Cleanup(func() { coraza_free_transaction(tt) })
+
+			// Query the predicate at its documented call site: after the request
+			// headers have been processed, so any phase-1 change to request-body
+			// access is reflected.
+			if rv := coraza_process_uri(tt, stringToC("/test"), stringToC("POST"), stringToC("HTTP/1.1")); rv != 0 {
+				t.Fatalf("coraza_process_uri failed: %d", rv)
+			}
+			if rv := coraza_add_request_header(tt, stringToC("Host"), 4, stringToC("localhost"), 9); rv != 0 {
+				t.Fatalf("coraza_add_request_header failed: %d", rv)
+			}
+			if rv := coraza_process_request_headers(tt); rv != 0 {
+				t.Fatalf("coraza_process_request_headers failed: %d", rv)
+			}
+
 			if got := int(coraza_is_request_body_accessible(tt)); got != tc.want {
 				t.Fatalf("coraza_is_request_body_accessible with %q: got %d, want %d",
 					tc.directives, got, tc.want)
 			}
-			coraza_free_transaction(tt)
-			coraza_free_waf(waf)
 		})
 	}
 }

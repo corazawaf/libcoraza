@@ -262,9 +262,16 @@ func coraza_process_request_body(t C.coraza_transaction_t) C.int {
 // It is the request-side counterpart of coraza_is_response_body_processable.
 //
 // A connector may call this once after coraza_process_request_headers() and, on
-// 0, skip the coraza_append_request_body()/coraza_request_body_from_file() and
-// coraza_process_request_body() sequence entirely: the engine would discard the
-// body anyway, so skipping only avoids the cgo crossings and the body copies.
+// 0, skip only the body *submission* calls — coraza_append_request_body() and
+// coraza_request_body_from_file() — because the engine discards those bytes
+// anyway. That saves the per-chunk cgo crossings and the body copies.
+//
+// It must NOT be used to skip coraza_process_request_body(). That call still
+// evaluates the whole request-body rule phase when access is off: core takes the
+// !RequestBodyAccess branch straight to Rules.Eval(PhaseRequestBody), so phase-2
+// rules matching on headers, ARGS or any non-body variable still run there, and
+// the call can still return an interruption. Skipping it would bypass those
+// rules — a fail-open inspection gap, not an optimisation.
 //
 // Returns 1 when the body is accessible, 0 otherwise.
 //
