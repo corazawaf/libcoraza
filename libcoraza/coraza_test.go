@@ -463,6 +463,39 @@ func TestProcessRequestBody(t *testing.T) {
 	coraza_free_waf(waf)
 }
 
+// TestIsRequestBodyAccessible asserts both arms of the gate: the directive that
+// turns request-body access off must flip the result. A single-arm test would
+// pass against a stubbed `return 1`, so the Off case is the negative control.
+func TestIsRequestBodyAccessible(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		directives string
+		want       int
+	}{
+		{"on", "SecRequestBodyAccess On", 1},
+		{"off", "SecRequestBodyAccess Off", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := coraza_new_waf_config()
+			if rv := coraza_rules_add(config, stringToC(tc.directives)); rv != 0 {
+				t.Fatalf("coraza_rules_add(%q) failed: %d", tc.directives, rv)
+			}
+			waf := coraza_new_waf(config, nil)
+			coraza_free_waf_config(config)
+			if waf == 0 {
+				t.Fatalf("WAF creation failed for %q", tc.directives)
+			}
+			tt := coraza_new_transaction(waf)
+			if got := int(coraza_is_request_body_accessible(tt)); got != tc.want {
+				t.Fatalf("coraza_is_request_body_accessible with %q: got %d, want %d",
+					tc.directives, got, tc.want)
+			}
+			coraza_free_transaction(tt)
+			coraza_free_waf(waf)
+		})
+	}
+}
+
 func TestAddResponseHeader(t *testing.T) {
 	config := coraza_new_waf_config()
 	waf := coraza_new_waf(config, nil)
