@@ -257,6 +257,33 @@ func coraza_process_request_body(t C.coraza_transaction_t) C.int {
 	return C.CORAZA_OK
 }
 
+// coraza_is_request_body_accessible reports whether the engine will inspect the
+// request body, i.e. whether SecRequestBodyAccess is on for this transaction.
+// It is the request-side counterpart of coraza_is_response_body_processable.
+//
+// A connector may call this once after coraza_process_request_headers() and, on
+// 0, skip only the body *submission* calls — coraza_append_request_body() and
+// coraza_request_body_from_file() — because the engine discards those bytes
+// anyway. That saves the per-chunk cgo crossings and the body copies.
+//
+// It must NOT be used to skip coraza_process_request_body(). That call still
+// evaluates the whole request-body rule phase when access is off: core takes the
+// !RequestBodyAccess branch straight to Rules.Eval(PhaseRequestBody), so phase-2
+// rules matching on headers, ARGS or any non-body variable still run there, and
+// the call can still return an interruption. Skipping it would bypass those
+// rules — a fail-open inspection gap, not an optimisation.
+//
+// Returns 1 when the body is accessible, 0 otherwise.
+//
+//export coraza_is_request_body_accessible
+func coraza_is_request_body_accessible(t C.coraza_transaction_t) C.int {
+	tx := fromRaw[types.Transaction](t)
+	if tx.IsRequestBodyAccessible() {
+		return 1
+	}
+	return 0
+}
+
 //export coraza_update_status_code
 func coraza_update_status_code(t C.coraza_transaction_t, code C.int) C.int {
 	tx := fromRaw[types.Transaction](t)

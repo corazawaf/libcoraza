@@ -379,6 +379,7 @@ extern int coraza_process_connection(coraza_transaction_t t,
                                      const char *serverHost,
                                      int serverPort);
 extern int coraza_process_request_body(coraza_transaction_t t);
+extern int coraza_is_request_body_accessible(coraza_transaction_t t);
 extern int coraza_update_status_code(coraza_transaction_t t, int code);
 extern int coraza_process_uri(coraza_transaction_t t, const char *uri,
                               const char *method, const char *proto);
