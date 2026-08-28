@@ -8,6 +8,26 @@ package main
 #include <stdint.h>
 #include <stddef.h>
 
+// Library version. Bumped by release-please alongside version.txt; the
+// x-release-please-* annotations below are what it keys off, and
+// `make check-version-sync` fails the build if the two ever drift.
+//
+// LIBCORAZA_VERSION_NUM is the form to test against. Use it to guard against
+// ABI changes -- for example the coraza_process_* calls returned 1 on an engine
+// error before 1.5.0, and return the tri-state coraza_result_t from 1.5.0 on:
+//
+//     #if LIBCORAZA_VERSION_NUM >= 10500
+//
+// Consumers that dlopen libcoraza rather than link against it cannot use these
+// macros, because they describe the header that was compiled against and not
+// the library that ends up loaded. Call coraza_version_num() instead.
+#define LIBCORAZA_VERSION_MAJOR 1 // x-release-please-major
+#define LIBCORAZA_VERSION_MINOR 6 // x-release-please-minor
+#define LIBCORAZA_VERSION_PATCH 0 // x-release-please-patch
+#define LIBCORAZA_VERSION_NUM   (LIBCORAZA_VERSION_MAJOR * 10000 + \
+                                 LIBCORAZA_VERSION_MINOR * 100   + \
+                                 LIBCORAZA_VERSION_PATCH)
+
 typedef struct coraza_intervention_t
 {
 	char *action;
@@ -448,6 +468,19 @@ func coraza_is_response_body_processable(t C.coraza_transaction_t) C.int {
 		return 1
 	}
 	return 0
+}
+
+/**
+ * Version of the library actually loaded, in LIBCORAZA_VERSION_NUM form.
+ *
+ * This is what a consumer that dlopens libcoraza must use; the
+ * LIBCORAZA_VERSION_* macros only describe the header it compiled against.
+ * Absent before 1.7.0, so a failed dlsym() means "older than 1.7.0" and
+ * nothing more precise.
+ */
+//export coraza_version_num
+func coraza_version_num() C.int {
+	return C.int(C.LIBCORAZA_VERSION_NUM)
 }
 
 //export coraza_rules_count

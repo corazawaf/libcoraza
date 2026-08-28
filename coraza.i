@@ -399,6 +399,7 @@ extern int coraza_process_response_body(coraza_transaction_t t);
 extern int coraza_is_response_body_processable(coraza_transaction_t t);
 extern int coraza_process_response_headers(coraza_transaction_t t, int status,
                                            const char *proto);
+extern int coraza_version_num(void);
 extern int coraza_rules_count(coraza_waf_t w);
 extern int coraza_free_transaction(coraza_transaction_t t);
 extern int coraza_free_intervention(coraza_intervention_t *it);
