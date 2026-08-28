@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.7.0](https://github.com/corazawaf/libcoraza/compare/v1.6.0...v1.7.0) (2026-08-28)
+
+
+### Features
+
+* export coraza_is_request_body_accessible ([92a0e8a](https://github.com/corazawaf/libcoraza/commit/92a0e8acb291dc19f23da5973a02e742faa6f8fa))
+* export coraza_is_request_body_accessible ([998ef35](https://github.com/corazawaf/libcoraza/commit/998ef355ee5748f8b5530596d502a68c96f87ffd)), closes [#118](https://github.com/corazawaf/libcoraza/issues/118)
+* expose the library version to C consumers ([626ff0b](https://github.com/corazawaf/libcoraza/commit/626ff0ba38f5480b55f0dfe335bd85086bffe3ae))
+* expose the library version to C consumers ([457fcf0](https://github.com/corazawaf/libcoraza/commit/457fcf0d9756d5f5fcafb3bcb3d481c106200e98))
+
+
+### Bug Fixes
+
+* correct doc contract and harden the accessibility test ([0aafeed](https://github.com/corazawaf/libcoraza/commit/0aafeede258bb530196ede49ed0c5e29e676f5c2))
+
 ## [1.6.0](https://github.com/corazawaf/libcoraza/compare/v1.5.0...v1.6.0) (2026-05-11)
 
 
