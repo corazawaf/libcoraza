@@ -396,7 +396,9 @@ func coraza_process_logging(t C.coraza_transaction_t) C.int {
 //export coraza_append_request_body
 func coraza_append_request_body(t C.coraza_transaction_t, data *C.uchar, length C.int) C.int {
 	tx := fromRaw[types.Transaction](t)
-	if _, _, err := tx.WriteRequestBody(C.GoBytes(unsafe.Pointer(data), length)); err != nil {
+	// unsafe.Slice creates a Go slice header over the C buffer without copying.
+	// Safe because WriteRequestBody does not retain the slice after returning.
+	if _, _, err := tx.WriteRequestBody(unsafe.Slice((*byte)(unsafe.Pointer(data)), length)); err != nil {
 		return 1
 	}
 	return 0
@@ -460,7 +462,7 @@ func coraza_add_response_headers(t C.coraza_transaction_t, packed *C.char, packe
 //export coraza_append_response_body
 func coraza_append_response_body(t C.coraza_transaction_t, data *C.uchar, length C.int) C.int {
 	tx := fromRaw[types.Transaction](t)
-	if _, _, err := tx.WriteResponseBody(C.GoBytes(unsafe.Pointer(data), length)); err != nil {
+	if _, _, err := tx.WriteResponseBody(unsafe.Slice((*byte)(unsafe.Pointer(data)), length)); err != nil {
 		return 1
 	}
 	return 0
@@ -556,9 +558,8 @@ func coraza_request_body_from_file(t C.coraza_transaction_t, file *C.char) C.int
 		return 1
 	}
 	defer f.Close()
-	// we read the file in chunks and send it to the engine
+	buf := make([]byte, 32*1024)
 	for {
-		buf := make([]byte, 1024)
 		n, err := f.Read(buf)
 		if err != nil {
 			if err == io.EOF {
