@@ -19,4 +19,5 @@ jobs:
         with:
           # this is not recommended, but we don't run any actions on release
           token: ${{ secrets.GITHUB_TOKEN }}
-          release-type: simple
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

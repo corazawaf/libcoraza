@@ -37,6 +37,9 @@ jobs:
     - name: Compile
       run: |
         make V=1
+    - name: Check version macros match version.txt
+      run: |
+        make check-version-sync
     - name: Test
       run: |
         make check
