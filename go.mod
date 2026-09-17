@@ -1,11 +1,11 @@
 module github.com/corazawaf/libcoraza
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/corazawaf/coraza/v3 v3.7.0
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
-	golang.org/x/sync v0.22.0
+	golang.org/x/sync v0.23.0
 )
 
 require (
