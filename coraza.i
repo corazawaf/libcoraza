@@ -399,6 +399,7 @@ extern int coraza_append_response_body(coraza_transaction_t t,
                                        const unsigned char *data, int length);
 extern int coraza_process_response_body(coraza_transaction_t t);
 extern int coraza_is_response_body_processable(coraza_transaction_t t);
+extern int coraza_is_response_body_accessible(coraza_transaction_t t);
 extern int coraza_process_response_headers(coraza_transaction_t t, int status,
                                            const char *proto);
 extern int coraza_version_num(void);
