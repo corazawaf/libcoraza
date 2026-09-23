@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.0](https://github.com/corazawaf/libcoraza/compare/v1.7.0...v1.8.0) (2026-09-23)
+
+
+### Features
+
+* export coraza_is_response_body_accessible ([12b8ca7](https://github.com/corazawaf/libcoraza/commit/12b8ca7bc939378a54891c5c1470af7a2c35ae9f))
+* export coraza_is_response_body_accessible ([cacfcdd](https://github.com/corazawaf/libcoraza/commit/cacfcdd948ea8363dcc50d29cb0b57fb459d3c91))
+
 ## [1.7.0](https://github.com/corazawaf/libcoraza/compare/v1.6.0...v1.7.0) (2026-08-28)
 
 
