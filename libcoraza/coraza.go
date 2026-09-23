@@ -497,6 +497,33 @@ func coraza_is_response_body_processable(t C.coraza_transaction_t) C.int {
 	return 0
 }
 
+// coraza_is_response_body_accessible reports whether SecResponseBodyAccess is
+// on for this transaction. It is the response-side counterpart of
+// coraza_is_request_body_accessible, and the missing half of
+// coraza_is_response_body_processable: that predicate only checks the
+// Content-Type against SecResponseBodyMimeType and does not consult the access
+// flag, so under "SecResponseBodyAccess Off" it still returns 1 for a listed
+// type although the engine will discard the body. A connector deciding whether
+// the response body will be inspected -- and therefore whether it must hold the
+// headers back for a clean phase-4 error page -- has to test both:
+// accessible && processable.
+//
+// Call it after coraza_process_response_headers(). On 0 (or when processable is
+// 0) skip only coraza_append_response_body(); coraza_process_response_body()
+// must still be called, since phase-4 rules on non-body variables
+// (RESPONSE_STATUS, RESPONSE_HEADERS, ARGS, TX) run there regardless.
+//
+// Returns 1 when the body is accessible, 0 otherwise.
+//
+//export coraza_is_response_body_accessible
+func coraza_is_response_body_accessible(t C.coraza_transaction_t) C.int {
+	tx := fromRaw[types.Transaction](t)
+	if tx.IsResponseBodyAccessible() {
+		return 1
+	}
+	return 0
+}
+
 /**
  * Version of the library actually loaded, in LIBCORAZA_VERSION_NUM form.
  *

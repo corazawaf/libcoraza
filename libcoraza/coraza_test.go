@@ -463,6 +463,63 @@ func TestProcessRequestBody(t *testing.T) {
 	coraza_free_waf(waf)
 }
 
+// TestIsResponseBodyAccessible asserts both arms of the response-side gate, and
+// the case the export exists for: with access Off and a Content-Type that IS in
+// SecResponseBodyMimeType, coraza_is_response_body_processable still returns 1
+// while the engine will not inspect the body. Only the accessible predicate
+// tells a connector that the delay it would apply buys nothing.
+func TestIsResponseBodyAccessible(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		directives      string
+		wantAccessible  int
+		wantProcessable int
+	}{
+		{"on", "SecResponseBodyAccess On\nSecResponseBodyMimeType text/plain", 1, 1},
+		{"off", "SecResponseBodyAccess Off\nSecResponseBodyMimeType text/plain", 0, 1},
+		{"off-unlisted-type", "SecResponseBodyAccess Off\nSecResponseBodyMimeType text/html", 0, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := coraza_new_waf_config()
+			t.Cleanup(func() { coraza_free_waf_config(config) })
+			if rv := coraza_rules_add(config, stringToC(tc.directives)); rv != 0 {
+				t.Fatalf("coraza_rules_add(%q) failed: %d", tc.directives, rv)
+			}
+			waf := coraza_new_waf(config, nil)
+			if waf == 0 {
+				t.Fatalf("WAF creation failed for %q", tc.directives)
+			}
+			t.Cleanup(func() { coraza_free_waf(waf) })
+			tt := coraza_new_transaction(waf)
+			t.Cleanup(func() { coraza_free_transaction(tt) })
+
+			// Query at the documented call site: after the response headers have
+			// been processed, so the Content-Type is known to the processable check.
+			if rv := coraza_process_uri(tt, stringToC("/test"), stringToC("GET"), stringToC("HTTP/1.1")); rv != 0 {
+				t.Fatalf("coraza_process_uri failed: %d", rv)
+			}
+			if rv := coraza_process_request_headers(tt); rv != 0 {
+				t.Fatalf("coraza_process_request_headers failed: %d", rv)
+			}
+			if rv := coraza_add_response_header(tt, stringToC("Content-Type"), 12, stringToC("text/plain"), 10); rv != 0 {
+				t.Fatalf("coraza_add_response_header failed: %d", rv)
+			}
+			if rv := coraza_process_response_headers(tt, 200, stringToC("HTTP/1.1")); rv != 0 {
+				t.Fatalf("coraza_process_response_headers failed: %d", rv)
+			}
+
+			if got := int(coraza_is_response_body_accessible(tt)); got != tc.wantAccessible {
+				t.Fatalf("coraza_is_response_body_accessible with %q: got %d, want %d",
+					tc.directives, got, tc.wantAccessible)
+			}
+			if got := int(coraza_is_response_body_processable(tt)); got != tc.wantProcessable {
+				t.Fatalf("coraza_is_response_body_processable with %q: got %d, want %d",
+					tc.directives, got, tc.wantProcessable)
+			}
+		})
+	}
+}
+
 // TestIsRequestBodyAccessible asserts both arms of the gate: the directive that
 // turns request-body access off must flip the result. A single-arm test would
 // pass against a stubbed `return 1`, so the Off case is the negative control.
