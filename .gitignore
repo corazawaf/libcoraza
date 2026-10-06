@@ -13,6 +13,7 @@ Makefile.in
 # Track the example Makefiles explicitly
 !examples/python/Makefile
 !examples/java/Makefile
+!examples/lua/Makefile
 autom4te.cache/
 aclocal.m4
 ar-lib
@@ -48,4 +49,6 @@ examples/python/__pycache__/
 examples/java/gen/
 examples/java/coraza_wrap.c
 examples/java/libcoraza_jni.so
+examples/lua/coraza_wrap.c
+examples/lua/coraza.so
 vendor/
