@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/corazawaf/coraza/v3 v3.8.1
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba
-	golang.org/x/sync v0.23.0
+	golang.org/x/sync v0.24.0
 )
 
 require (
