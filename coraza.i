@@ -10,6 +10,7 @@
 %{
 /* Include the actual generated header in the wrapper code */
 #include <stdlib.h>
+#include <limits.h>   /* INT_MAX, used by the byte-buffer typemaps */
 #include "coraza/coraza.h"
 %}
 
@@ -25,6 +26,7 @@
  */
 %ignore coraza_add_debug_log_callback;
 %ignore coraza_add_error_callback;
+%ignore coraza_free_string;
 
 /*
  * Handle the char** output parameter for error messages.
@@ -453,7 +455,14 @@ typedef struct coraza_intervention_t {
     int pause;
     int disruptive;
     char *data;
+    int rule_id;
 } coraza_intervention_t;
+
+typedef enum coraza_result_t {
+    CORAZA_ERROR = -1,
+    CORAZA_OK = 0,
+    CORAZA_INTERRUPTION = 1,
+} coraza_result_t;
 
 typedef enum coraza_debug_log_level_t {
     CORAZA_DEBUG_LOG_LEVEL_UNKNOWN,
@@ -495,6 +504,7 @@ extern int coraza_process_connection(coraza_transaction_t t,
                                      const char *serverHost,
                                      int serverPort);
 extern int coraza_process_request_body(coraza_transaction_t t);
+extern int coraza_is_request_body_accessible(coraza_transaction_t t);
 extern int coraza_update_status_code(coraza_transaction_t t, int code);
 extern int coraza_process_uri(coraza_transaction_t t, const char *uri,
                               const char *method, const char *proto);
@@ -514,8 +524,10 @@ extern int coraza_append_response_body(coraza_transaction_t t,
                                        const unsigned char *data, int length);
 extern int coraza_process_response_body(coraza_transaction_t t);
 extern int coraza_is_response_body_processable(coraza_transaction_t t);
+extern int coraza_is_response_body_accessible(coraza_transaction_t t);
 extern int coraza_process_response_headers(coraza_transaction_t t, int status,
                                            const char *proto);
+extern int coraza_version_num(void);
 extern int coraza_rules_count(coraza_waf_t w);
 extern int coraza_free_transaction(coraza_transaction_t t);
 extern int coraza_free_intervention(coraza_intervention_t *it);
@@ -525,4 +537,12 @@ extern int coraza_request_body_from_file(coraza_transaction_t t,
 extern int coraza_free_waf(coraza_waf_t t);
 extern coraza_severity_t coraza_matched_rule_get_severity(
     coraza_matched_rule_t r);
+extern int coraza_matched_rule_get_id(coraza_matched_rule_t r);
 extern char *coraza_matched_rule_get_error_log(coraza_matched_rule_t r);
+extern int coraza_add_request_headers(coraza_transaction_t t,
+                                      const char *packed, int packed_len,
+                                      int count);
+extern int coraza_add_response_headers(coraza_transaction_t t,
+                                       const char *packed, int packed_len,
+                                       int count);
+extern void coraza_free_string(char *s);

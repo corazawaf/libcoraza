@@ -13,16 +13,16 @@ jobs:
       contents: read
     strategy:
       matrix:
-        go-version: [1.25.x, 1.26.x]
+        go-version: [1.26.x]
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Install Go
-      uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: ${{ matrix.go-version }}
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         lfs: true
         fetch-depth: 0 #for better blame info
@@ -37,9 +37,28 @@ jobs:
     - name: Compile
       run: |
         make V=1
+    - name: Check version macros match version.txt
+      run: |
+        make check-version-sync
     - name: Test
       run: |
         make check
     - name: Install
       run: |
         sudo make V=1 install
+    - name: Run CRS tests with go-ftw
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get install -y libmicrohttpd-dev
+        sudo ldconfig
+        # renovate: depName=coreruleset/go-ftw datasource=github-releases
+        go install github.com/coreruleset/go-ftw/v2@v2.1.0
+        # renovate: datasource=github-releases depName=coreruleset/coreruleset
+        CRS_VERSION="4.25.0"
+        curl -sSL "https://github.com/coreruleset/coreruleset/archive/refs/tags/v${CRS_VERSION}.tar.gz" -o /tmp/crs.tar.gz
+        tar xzf /tmp/crs.tar.gz -C /tmp
+        gcc -o tests/coraza_httpd tests/coraza_httpd.c $(pkg-config --cflags --libs libmicrohttpd) -lcoraza -I/usr/local/include -L/usr/local/lib
+        printf "include coraza.conf\ninclude /tmp/coreruleset-${CRS_VERSION}/crs-setup.conf.example\ninclude /tmp/coreruleset-${CRS_VERSION}/plugins/empty-before.conf\ninclude /tmp/coreruleset-${CRS_VERSION}/rules/*.conf\ninclude /tmp/coreruleset-${CRS_VERSION}/plugins/empty-after.conf\n" > tests/coraza_includes.conf
+        LD_LIBRARY_PATH=/usr/local/lib tests/coraza_httpd tests/coraza_includes.conf 8080 &
+        for i in $(seq 1 10); do curl -sf http://127.0.0.1:8080/ > /dev/null 2>&1 && break; sleep 1; done
+        ~/go/bin/go-ftw run --config tests/ftw.yml --dir /tmp/coreruleset-${CRS_VERSION}/tests/regression/tests/ --cloud --exclude "^920"

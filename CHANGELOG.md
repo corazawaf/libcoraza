@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.8.0](https://github.com/corazawaf/libcoraza/compare/v1.7.0...v1.8.0) (2026-09-23)
+
+
+### Features
+
+* export coraza_is_response_body_accessible ([12b8ca7](https://github.com/corazawaf/libcoraza/commit/12b8ca7bc939378a54891c5c1470af7a2c35ae9f))
+* export coraza_is_response_body_accessible ([cacfcdd](https://github.com/corazawaf/libcoraza/commit/cacfcdd948ea8363dcc50d29cb0b57fb459d3c91))
+
+## [1.7.0](https://github.com/corazawaf/libcoraza/compare/v1.6.0...v1.7.0) (2026-08-28)
+
+
+### Features
+
+* export coraza_is_request_body_accessible ([92a0e8a](https://github.com/corazawaf/libcoraza/commit/92a0e8acb291dc19f23da5973a02e742faa6f8fa))
+* export coraza_is_request_body_accessible ([998ef35](https://github.com/corazawaf/libcoraza/commit/998ef355ee5748f8b5530596d502a68c96f87ffd)), closes [#118](https://github.com/corazawaf/libcoraza/issues/118)
+* expose the library version to C consumers ([626ff0b](https://github.com/corazawaf/libcoraza/commit/626ff0ba38f5480b55f0dfe335bd85086bffe3ae))
+* expose the library version to C consumers ([457fcf0](https://github.com/corazawaf/libcoraza/commit/457fcf0d9756d5f5fcafb3bcb3d481c106200e98))
+
+
+### Bug Fixes
+
+* correct doc contract and harden the accessibility test ([0aafeed](https://github.com/corazawaf/libcoraza/commit/0aafeede258bb530196ede49ed0c5e29e676f5c2))
+
+## [1.6.0](https://github.com/corazawaf/libcoraza/compare/v1.5.0...v1.6.0) (2026-05-11)
+
+
+### Features
+
+* surface RuleID and add coraza_matched_rule_get_id ([efb02f7](https://github.com/corazawaf/libcoraza/commit/efb02f738933e695ba048edb1f8e2d54497e8908))
+* surface RuleID on intervention + add coraza_matched_rule_get_id ([3aae672](https://github.com/corazawaf/libcoraza/commit/3aae672b11aa931d3fa5d1535a64c838b67cdea1))
+
+
+### Bug Fixes
+
+* declare coraza_matched_rule_get_id and rule_id in coraza.i ([fc91eea](https://github.com/corazawaf/libcoraza/commit/fc91eeaa1c29bc9c4e85cf9e568c2e27e8cc6068))
+
+## [1.5.0](https://github.com/corazawaf/libcoraza/compare/v1.4.0...v1.5.0) (2026-05-10)
+
+
+### Features
+
+* **api:** return 1 on disruption, add bulk headers, add coraza_free_string ([737af66](https://github.com/corazawaf/libcoraza/commit/737af66a95993a98a1f76578d6f69168bdc4e7b6))
+
+
+### Bug Fixes
+
+* add foreign to AM_INIT_AUTOMAKE ([77ead66](https://github.com/corazawaf/libcoraza/commit/77ead667915d4d38e9868a87a99a7c58d1fa005a))
+* add foreign to AM_INIT_AUTOMAKE to not require ChangeLog ([8f0d4df](https://github.com/corazawaf/libcoraza/commit/8f0d4df655e5a41aeb89bba39d6a4084b9d1d6f8))
+
 ## [1.4.0](https://github.com/corazawaf/libcoraza/compare/v1.3.0...v1.4.0) (2026-04-10)
 
 
