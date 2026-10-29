@@ -30,7 +30,7 @@ install-data-local: all check
 	@INSTALL@ libcoraza.$(SHARED_EXT) $(DESTDIR)@prefix@/lib/
 	@INSTALL@ coraza/coraza.h $(DESTDIR)@prefix@/include/coraza/coraza.h
 
-.PHONY: docs swig check-swig-sync
+.PHONY: docs swig check-swig-sync check-version-sync
 docs:
 # build C header doxygen
 	@doxygen ./Doxyfile
@@ -46,6 +46,27 @@ check-swig-sync:
 	done; \
 	if [ $$missing -eq 0 ]; then \
 		echo "  OK: all Go exports are accounted for in coraza.i"; \
+	else \
+		exit 1; \
+	fi
+
+check-version-sync:
+	@echo "Checking LIBCORAZA_VERSION_* in libcoraza/coraza.go matches version.txt..."
+	@v=`tr -d '[:space:]' < $(srcdir)/version.txt`; \
+	fail=0; \
+	set -- MAJOR 1 MINOR 2 PATCH 3; \
+	while [ $$# -gt 0 ]; do \
+		part=`echo $$v | cut -d. -f$$2`; \
+		got=`sed -n "s/^#define LIBCORAZA_VERSION_$$1[[:space:]]\{1,\}\([0-9]\{1,\}\).*$$/\1/p" \
+			$(srcdir)/libcoraza/coraza.go`; \
+		if [ "$$got" != "$$part" ]; then \
+			echo "  MISMATCH: LIBCORAZA_VERSION_$$1 is '$$got', version.txt says '$$part'"; \
+			fail=1; \
+		fi; \
+		shift 2; \
+	done; \
+	if [ $$fail -eq 0 ]; then \
+		echo "  OK: version macros match version.txt ($$v)"; \
 	else \
 		exit 1; \
 	fi

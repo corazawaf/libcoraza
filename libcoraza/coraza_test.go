@@ -463,6 +463,110 @@ func TestProcessRequestBody(t *testing.T) {
 	coraza_free_waf(waf)
 }
 
+// TestIsResponseBodyAccessible asserts both arms of the response-side gate, and
+// the case the export exists for: with access Off and a Content-Type that IS in
+// SecResponseBodyMimeType, coraza_is_response_body_processable still returns 1
+// while the engine will not inspect the body. Only the accessible predicate
+// tells a connector that the delay it would apply buys nothing.
+func TestIsResponseBodyAccessible(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		directives      string
+		wantAccessible  int
+		wantProcessable int
+	}{
+		{"on", "SecResponseBodyAccess On\nSecResponseBodyMimeType text/plain", 1, 1},
+		{"off", "SecResponseBodyAccess Off\nSecResponseBodyMimeType text/plain", 0, 1},
+		{"off-unlisted-type", "SecResponseBodyAccess Off\nSecResponseBodyMimeType text/html", 0, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := coraza_new_waf_config()
+			t.Cleanup(func() { coraza_free_waf_config(config) })
+			if rv := coraza_rules_add(config, stringToC(tc.directives)); rv != 0 {
+				t.Fatalf("coraza_rules_add(%q) failed: %d", tc.directives, rv)
+			}
+			waf := coraza_new_waf(config, nil)
+			if waf == 0 {
+				t.Fatalf("WAF creation failed for %q", tc.directives)
+			}
+			t.Cleanup(func() { coraza_free_waf(waf) })
+			tt := coraza_new_transaction(waf)
+			t.Cleanup(func() { coraza_free_transaction(tt) })
+
+			// Query at the documented call site: after the response headers have
+			// been processed, so the Content-Type is known to the processable check.
+			if rv := coraza_process_uri(tt, stringToC("/test"), stringToC("GET"), stringToC("HTTP/1.1")); rv != 0 {
+				t.Fatalf("coraza_process_uri failed: %d", rv)
+			}
+			if rv := coraza_process_request_headers(tt); rv != 0 {
+				t.Fatalf("coraza_process_request_headers failed: %d", rv)
+			}
+			if rv := coraza_add_response_header(tt, stringToC("Content-Type"), 12, stringToC("text/plain"), 10); rv != 0 {
+				t.Fatalf("coraza_add_response_header failed: %d", rv)
+			}
+			if rv := coraza_process_response_headers(tt, 200, stringToC("HTTP/1.1")); rv != 0 {
+				t.Fatalf("coraza_process_response_headers failed: %d", rv)
+			}
+
+			if got := int(coraza_is_response_body_accessible(tt)); got != tc.wantAccessible {
+				t.Fatalf("coraza_is_response_body_accessible with %q: got %d, want %d",
+					tc.directives, got, tc.wantAccessible)
+			}
+			if got := int(coraza_is_response_body_processable(tt)); got != tc.wantProcessable {
+				t.Fatalf("coraza_is_response_body_processable with %q: got %d, want %d",
+					tc.directives, got, tc.wantProcessable)
+			}
+		})
+	}
+}
+
+// TestIsRequestBodyAccessible asserts both arms of the gate: the directive that
+// turns request-body access off must flip the result. A single-arm test would
+// pass against a stubbed `return 1`, so the Off case is the negative control.
+func TestIsRequestBodyAccessible(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		directives string
+		want       int
+	}{
+		{"on", "SecRequestBodyAccess On", 1},
+		{"off", "SecRequestBodyAccess Off", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := coraza_new_waf_config()
+			t.Cleanup(func() { coraza_free_waf_config(config) })
+			if rv := coraza_rules_add(config, stringToC(tc.directives)); rv != 0 {
+				t.Fatalf("coraza_rules_add(%q) failed: %d", tc.directives, rv)
+			}
+			waf := coraza_new_waf(config, nil)
+			if waf == 0 {
+				t.Fatalf("WAF creation failed for %q", tc.directives)
+			}
+			t.Cleanup(func() { coraza_free_waf(waf) })
+			tt := coraza_new_transaction(waf)
+			t.Cleanup(func() { coraza_free_transaction(tt) })
+
+			// Query the predicate at its documented call site: after the request
+			// headers have been processed, so any phase-1 change to request-body
+			// access is reflected.
+			if rv := coraza_process_uri(tt, stringToC("/test"), stringToC("POST"), stringToC("HTTP/1.1")); rv != 0 {
+				t.Fatalf("coraza_process_uri failed: %d", rv)
+			}
+			if rv := coraza_add_request_header(tt, stringToC("Host"), 4, stringToC("localhost"), 9); rv != 0 {
+				t.Fatalf("coraza_add_request_header failed: %d", rv)
+			}
+			if rv := coraza_process_request_headers(tt); rv != 0 {
+				t.Fatalf("coraza_process_request_headers failed: %d", rv)
+			}
+
+			if got := int(coraza_is_request_body_accessible(tt)); got != tc.want {
+				t.Fatalf("coraza_is_request_body_accessible with %q: got %d, want %d",
+					tc.directives, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestAddResponseHeader(t *testing.T) {
 	config := coraza_new_waf_config()
 	waf := coraza_new_waf(config, nil)
@@ -575,6 +679,9 @@ func TestInterventionRedirect(t *testing.T) {
 	if stringFromC(intervention.data) != "http://example.com" {
 		t.Fatalf("Expected data 'http://example.com', got '%s'", stringFromC(intervention.data))
 	}
+	if intervention.rule_id != 1 {
+		t.Fatalf("Expected intervention.rule_id 1, got %d", intervention.rule_id)
+	}
 
 	rv := coraza_free_intervention(intervention)
 	if rv != 0 {
@@ -601,10 +708,80 @@ func TestInterventionDenyNoData(t *testing.T) {
 	if intervention.data != nil {
 		t.Fatal("Expected nil data field for deny action")
 	}
+	if intervention.rule_id != 1 {
+		t.Fatalf("Expected intervention.rule_id 1, got %d", intervention.rule_id)
+	}
 
 	rv := coraza_free_intervention(intervention)
 	if rv != 0 {
 		t.Fatalf("coraza_free_intervention expected 0, got %d", rv)
+	}
+	coraza_free_transaction(tt)
+	coraza_free_waf(waf)
+}
+
+// TestInterventionRuleID exercises the rule_id field on coraza_intervention_t
+// across a non-trivial set of rule IDs, including one that mirrors the
+// shape used by OWASP CRS anomaly-evaluation rules (id:949110). Ensures
+// the field is populated regardless of the rule-id magnitude.
+func TestInterventionRuleID(t *testing.T) {
+	cases := []struct {
+		ruleID int
+	}{
+		{1},
+		{42},
+		{1000},
+		{949110}, // CRS-shape: REQUEST-949-BLOCKING-EVALUATION
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("id_%d", tc.ruleID), func(t *testing.T) {
+			config := coraza_new_waf_config()
+			rule := fmt.Sprintf(
+				`SecRule REMOTE_ADDR "127.0.0.1" "id:%d,phase:1,deny,status:403"`,
+				tc.ruleID,
+			)
+			coraza_rules_add(config, stringToC(rule))
+			waf := coraza_new_waf(config, nil)
+			coraza_free_waf_config(config)
+			tt := coraza_new_transaction(waf)
+
+			coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80)
+			coraza_process_request_headers(tt)
+
+			intervention := coraza_intervention(tt)
+			if intervention == nil {
+				t.Fatalf("Expected non-nil intervention for rule id:%d", tc.ruleID)
+			}
+			if int(intervention.rule_id) != tc.ruleID {
+				t.Errorf("Expected intervention.rule_id %d, got %d", tc.ruleID, intervention.rule_id)
+			}
+
+			coraza_free_intervention(intervention)
+			coraza_free_transaction(tt)
+			coraza_free_waf(waf)
+		})
+	}
+}
+
+// TestInterventionNoRuleIDForNoMatch confirms that when no rule fires,
+// the intervention is nil — the rule_id field has no semantic meaning
+// to test in isolation (there's no intervention to read it from).
+// Included for symmetry with the documented "id:0 means unset" convention
+// in the patch commit message.
+func TestInterventionNoRuleIDForNoMatch(t *testing.T) {
+	config := coraza_new_waf_config()
+	coraza_rules_add(config, stringToC(`SecRule REMOTE_ADDR "192.168.99.99" "id:1,phase:1,deny,status:403"`))
+	waf := coraza_new_waf(config, nil)
+	coraza_free_waf_config(config)
+	tt := coraza_new_transaction(waf)
+
+	coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80) // doesn't match
+	coraza_process_request_headers(tt)
+
+	intervention := coraza_intervention(tt)
+	if intervention != nil {
+		t.Fatal("Expected nil intervention when no rule matched")
 	}
 	coraza_free_transaction(tt)
 	coraza_free_waf(waf)
@@ -848,8 +1025,51 @@ func TestMatchedRuleFunctions(t *testing.T) {
 		t.Fatal("Expected non-empty error log from matched rule")
 	}
 
+	// Test coraza_matched_rule_get_id - should match the seclang id:N value.
+	if got := int(coraza_matched_rule_get_id(handle)); got != 1 {
+		t.Fatalf("Expected matched rule id 1, got %d", got)
+	}
+
 	coraza_free_transaction(tt)
 	coraza_free_waf(waf)
+}
+
+// TestMatchedRuleIDs exercises coraza_matched_rule_get_id across a spread of
+// rule ids, mirroring TestMatchedRuleSeverities. Same shape: one rule per
+// case, capture the MatchedRule via the error-callback path, assert the
+// getter returns the seclang `id:N` value.
+func TestMatchedRuleIDs(t *testing.T) {
+	cases := []int{1, 42, 1000, 949110}
+	for _, want := range cases {
+		want := want
+		t.Run(fmt.Sprintf("id_%d", want), func(t *testing.T) {
+			config := coraza_new_waf_config()
+			rule := fmt.Sprintf(
+				`SecRule REMOTE_ADDR "127.0.0.1" "id:%d,phase:1,deny,log,status:403"`,
+				want,
+			)
+			coraza_rules_add(config, stringToC(rule))
+			getHandle, releaseHandle := captureMatchedRule(config)
+			defer releaseHandle()
+
+			waf := coraza_new_waf(config, nil)
+			coraza_free_waf_config(config)
+			tt := coraza_new_transaction(waf)
+			coraza_process_connection(tt, stringToC("127.0.0.1"), 80, stringToC(""), 80)
+			coraza_process_request_headers(tt)
+
+			handle := getHandle()
+			if handle == 0 {
+				t.Fatalf("Expected matched rule handle for id %d", want)
+			}
+			if got := int(coraza_matched_rule_get_id(handle)); got != want {
+				t.Errorf("rule id %d: expected getter to return %d, got %d", want, want, got)
+			}
+
+			coraza_free_transaction(tt)
+			coraza_free_waf(waf)
+		})
+	}
 }
 
 // TestMatchedRuleSeverities exercises coraza_matched_rule_get_severity across

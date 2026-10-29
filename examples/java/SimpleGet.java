@@ -102,9 +102,9 @@ public class SimpleGet {
             ret = coraza.coraza_process_uri(tx, "/someurl?foo=bar", "GET", "HTTP/1.1");
             check(ret == 0, "coraza_process_uri failed: " + ret);
 
-            // coraza_process_request_headers
+            // coraza_process_request_headers (returns CORAZA_INTERRUPTION for the deny rule)
             ret = coraza.coraza_process_request_headers(tx);
-            check(ret == 0, "coraza_process_request_headers failed: " + ret);
+            check(ret == 1, "coraza_process_request_headers: expected CORAZA_INTERRUPTION (1), got " + ret);
 
             // coraza_append_request_body (byte[] typemap: single array arg)
             ret = coraza.coraza_append_request_body(tx, "hello=world".getBytes());
@@ -112,11 +112,11 @@ public class SimpleGet {
 
             // coraza_process_request_body
             ret = coraza.coraza_process_request_body(tx);
-            check(ret == 0, "coraza_process_request_body failed: " + ret);
+            check(ret >= 0, "coraza_process_request_body failed: " + ret);
 
             // coraza_process_response_headers
             ret = coraza.coraza_process_response_headers(tx, 200, "HTTP/1.1");
-            check(ret == 0, "coraza_process_response_headers failed: " + ret);
+            check(ret >= 0, "coraza_process_response_headers failed: " + ret);
 
             // coraza_add_response_header
             String cname = "Content-Type", cvalue = "text/plain";
@@ -130,7 +130,7 @@ public class SimpleGet {
 
             // coraza_process_response_body
             ret = coraza.coraza_process_response_body(tx);
-            check(ret == 0, "coraza_process_response_body failed: " + ret);
+            check(ret >= 0, "coraza_process_response_body failed: " + ret);
 
             // coraza_update_status_code
             coraza.coraza_update_status_code(tx, 200);

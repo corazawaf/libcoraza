@@ -1,3 +1,17 @@
+libcoraza (1.8.0-1) unstable; urgency=low
+
+  * New upstream release 1.8.0.
+  * Export coraza_is_response_body_accessible(): the response-side counterpart
+    of coraza_is_request_body_accessible(). coraza_is_response_body_processable()
+    only checks the Content-Type against SecResponseBodyMimeType, so under
+    "SecResponseBodyAccess Off" connectors could not tell the body would not
+    be inspected and delayed response headers for nothing (coraza-nginx#140,
+    coraza-apache#60).
+  * Build-Depends: golang-go (>= 2:1.26~), matching the go 1.26.0 directive
+    in go.mod (builds on jammy/noble pull it from ppa:longsleep/golang-backports).
+
+ -- Pierre Pomes <pierre.pomes@gmail.com>  Wed, 23 Sep 2026 13:24:44 -0400
+
 libcoraza (1.1.1-1) unstable; urgency=low
 
   * Initial Debian packaging.
