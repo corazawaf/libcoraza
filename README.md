@@ -115,6 +115,10 @@ make -C examples/python run  # build and run
 # Java (requires JAVA_HOME to be set)
 make -C examples/java        # build
 make -C examples/java run    # build and run
+
+# Lua (add LUA=luajit for LuaJIT)
+make -C examples/lua         # build
+make -C examples/lua run     # build and run
 ```
 
 Each example exercises the full API including error and debug log callbacks.
