@@ -5,7 +5,14 @@
  * extern declaration or a %ignore directive (for callback-based functions).
  * Run `make check-swig-sync` to verify the two files are in sync.
  */
+#ifdef SWIGPYTHON
+/* threads="1" makes SWIG emit GIL release code; %nothread keeps the GIL held
+ * everywhere except the functions marked %thread further down. */
+%module(threads="1") coraza
+%nothread;
+#else
 %module coraza
+#endif
 
 %{
 /* Include the actual generated header in the wrapper code */
@@ -386,7 +393,11 @@ typedef enum coraza_severity_t {
  * coraza_append_response_body are intentionally excluded: the Python typemap
  * extracts a raw pointer via PyBytes_AS_STRING / PyByteArray_AS_STRING and
  * that pointer must remain valid for the duration of the call — releasing the
- * GIL would allow another thread to resize or deallocate the buffer.
+ * GIL would allow another thread to resize a bytearray under Go.
+ *
+ * With the GIL released, nothing serialises calls on the same transaction
+ * from different Python threads.  Transactions are not thread-safe: use each
+ * one from a single thread, and do not free it while another call is running.
  */
 #ifdef SWIGPYTHON
 %thread coraza_new_waf;
