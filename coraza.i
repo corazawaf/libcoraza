@@ -186,13 +186,15 @@ int coraza_set_debug_log_callback(coraza_waf_config_t cfg, PyObject *cb) {
 %typemap(jstype) (const unsigned char *data, int length) "byte[]"
 %typemap(javain) (const unsigned char *data, int length) "$javainput"
 %typemap(in)     (const unsigned char *data, int length) {
-    /* GetArrayLength must be called before GetPrimitiveArrayCritical: no other
-     * JNI calls are permitted while a critical section is open. */
+    /* Not GetPrimitiveArrayCritical: the call into Go can run rules, fire the
+     * Java callbacks and block on temp-file I/O, none of which is allowed
+     * inside a critical region.  Go copies the body anyway. */
+    $1 = (unsigned char *)JCALL2(GetByteArrayElements, jenv, $input, NULL);
+    if (!$1) return $null; /* OutOfMemoryError is already pending */
     $2 = (int)JCALL1(GetArrayLength, jenv, $input);
-    $1 = (unsigned char *)JCALL2(GetPrimitiveArrayCritical, jenv, $input, NULL);
 }
 %typemap(argout) (const unsigned char *data, int length) {
-    JCALL3(ReleasePrimitiveArrayCritical, jenv, $input, (jbyte *)$1, JNI_ABORT);
+    JCALL3(ReleaseByteArrayElements, jenv, $input, (jbyte *)$1, JNI_ABORT);
 }
 
 /*
@@ -218,56 +220,39 @@ typedef struct {
 
 /*
  * Obtain a JNIEnv for the current thread, attaching it as a daemon if needed.
- *
- * Attachment is cached per OS thread via __thread storage so repeated calls on
- * the same thread skip the GetEnv round-trip.  Attached threads are detached
- * automatically by _swig_jni_detach_thread, which is registered as a
- * pthread destructor on first attachment and fires when the OS thread exits.
- *
- * Returns NULL if attachment fails (JVM overloaded or shutting down); callers
- * must check before dereferencing env.
+ * Callbacks normally fire on the calling Java thread, which is already
+ * attached.  *attached is set when this call attached the thread; the caller
+ * must then detach it before returning.  Returns NULL on failure.
  */
-#include <pthread.h>
-
-static pthread_key_t  _swig_jni_tls_key;
-static pthread_once_t _swig_jni_tls_once = PTHREAD_ONCE_INIT;
-
-static void _swig_jni_detach_thread(void *jvm_ptr) {
-    if (jvm_ptr)
-        ((JavaVM *)jvm_ptr)->DetachCurrentThread((JavaVM *)jvm_ptr);
-}
-
-static void _swig_jni_tls_init(void) {
-    pthread_key_create(&_swig_jni_tls_key, _swig_jni_detach_thread);
-}
-
-static JNIEnv *_swig_ensure_jni_env(JavaVM *jvm) {
+static JNIEnv *_swig_jni_env(JavaVM *jvm, jboolean *attached) {
     JNIEnv *env = NULL;
+    *attached = JNI_FALSE;
     jint rc = (*jvm)->GetEnv(jvm, (void **)&env, JNI_VERSION_1_6);
     if (rc == JNI_OK)
         return env;
     if (rc != JNI_EDETACHED)
-        return NULL; /* JVM error — caller must handle NULL */
+        return NULL;
     if ((*jvm)->AttachCurrentThreadAsDaemon(jvm, (void **)&env, NULL) != JNI_OK)
         return NULL;
-    /* Register DetachCurrentThread to run when this OS thread exits. */
-    pthread_once(&_swig_jni_tls_once, _swig_jni_tls_init);
-    pthread_setspecific(_swig_jni_tls_key, jvm);
+    *attached = JNI_TRUE;
     return env;
 }
 
 static void _swig_java_error_trampoline(void *ctx, coraza_matched_rule_t rule) {
     _swig_java_cb_ctx_t *jctx = (_swig_java_cb_ctx_t *)ctx;
-    JNIEnv *env = _swig_ensure_jni_env(jctx->jvm);
+    jboolean attached;
+    JNIEnv *env = _swig_jni_env(jctx->jvm, &attached);
     if (!env) return;
     (*env)->CallVoidMethod(env, jctx->obj, jctx->mid, (jlong)(uintptr_t)rule);
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionDescribe(env);
+    if (attached) (*jctx->jvm)->DetachCurrentThread(jctx->jvm);
 }
 
 static void _swig_java_debug_trampoline(void *ctx, coraza_debug_log_level_t level,
                                          const char *msg, const char *fields) {
     _swig_java_cb_ctx_t *jctx = (_swig_java_cb_ctx_t *)ctx;
-    JNIEnv *env = _swig_ensure_jni_env(jctx->jvm);
+    jboolean attached;
+    JNIEnv *env = _swig_jni_env(jctx->jvm, &attached);
     if (!env) return;
     jstring jmsg    = (*env)->NewStringUTF(env, msg    ? msg    : "");
     jstring jfields = (*env)->NewStringUTF(env, fields ? fields : "");
@@ -278,6 +263,7 @@ static void _swig_java_debug_trampoline(void *ctx, coraza_debug_log_level_t leve
     if (jmsg)    (*env)->DeleteLocalRef(env, jmsg);
     if (jfields) (*env)->DeleteLocalRef(env, jfields);
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionDescribe(env);
+    if (attached) (*jctx->jvm)->DetachCurrentThread(jctx->jvm);
 }
 
 JNIEXPORT jint JNICALL Java_coraza_coraza_1set_1error_1callback(
