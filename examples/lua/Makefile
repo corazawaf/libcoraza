@@ -11,11 +11,17 @@ CORAZA_HDR  = $(TOPDIR)/coraza/coraza.h
 LIBCORAZA   = $(TOPDIR)/libcoraza.a
 
 # Detect Lua include flags via pkg-config; fall back to a common system path.
+# For LuaJIT (OpenResty, Kong, APISIX) run: make run LUA=luajit
+ifeq ($(notdir $(LUA)),luajit)
+LUA_CFLAGS ?= $(shell pkg-config --cflags luajit 2>/dev/null || echo "-I/usr/include/luajit-2.1")
+endif
 LUA_CFLAGS ?= $(shell pkg-config --cflags lua5.4 2>/dev/null || \
                         pkg-config --cflags lua-5.4 2>/dev/null || \
                         pkg-config --cflags lua 2>/dev/null || \
+                        pkg-config --cflags luajit 2>/dev/null || \
                         echo "-I/usr/include/lua5.4")
-LUA        ?= $(shell command -v lua5.4 2>/dev/null || command -v lua 2>/dev/null || echo lua5.4)
+LUA        ?= $(shell command -v lua5.4 2>/dev/null || command -v lua 2>/dev/null || \
+                      command -v luajit 2>/dev/null || echo lua5.4)
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
