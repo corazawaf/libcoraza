@@ -395,6 +395,9 @@ func coraza_process_logging(t C.coraza_transaction_t) C.int {
 
 //export coraza_append_request_body
 func coraza_append_request_body(t C.coraza_transaction_t, data *C.uchar, length C.int) C.int {
+	if length < 0 || (data == nil && length > 0) {
+		return 1
+	}
 	tx := fromRaw[types.Transaction](t)
 	// unsafe.Slice creates a Go slice header over the C buffer without copying.
 	// Safe because WriteRequestBody does not retain the slice after returning.
@@ -461,6 +464,9 @@ func coraza_add_response_headers(t C.coraza_transaction_t, packed *C.char, packe
 
 //export coraza_append_response_body
 func coraza_append_response_body(t C.coraza_transaction_t, data *C.uchar, length C.int) C.int {
+	if length < 0 || (data == nil && length > 0) {
+		return 1
+	}
 	tx := fromRaw[types.Transaction](t)
 	if _, _, err := tx.WriteResponseBody(unsafe.Slice((*byte)(unsafe.Pointer(data)), length)); err != nil {
 		return 1
