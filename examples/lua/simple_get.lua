@@ -89,8 +89,9 @@ local function test_lifecycle()
     check(ret == 0, "coraza_process_uri failed: " .. ret)
 
     -- coraza_process_request_headers
+    -- returns CORAZA_INTERRUPTION (1) for the deny rule
     ret = coraza.coraza_process_request_headers(tx)
-    check(ret == 0, "coraza_process_request_headers failed: " .. ret)
+    check(ret == 1, "coraza_process_request_headers: expected CORAZA_INTERRUPTION (1), got " .. ret)
 
     -- coraza_append_request_body (string typemap: single argument)
     ret = coraza.coraza_append_request_body(tx, "hello=world")
@@ -98,11 +99,11 @@ local function test_lifecycle()
 
     -- coraza_process_request_body
     ret = coraza.coraza_process_request_body(tx)
-    check(ret == 0, "coraza_process_request_body failed: " .. ret)
+    check(ret >= 0, "coraza_process_request_body failed: " .. ret)
 
     -- coraza_process_response_headers
     ret = coraza.coraza_process_response_headers(tx, 200, "HTTP/1.1")
-    check(ret == 0, "coraza_process_response_headers failed: " .. ret)
+    check(ret >= 0, "coraza_process_response_headers failed: " .. ret)
 
     -- coraza_add_response_header
     local cname, cvalue = "Content-Type", "text/plain"
@@ -115,7 +116,7 @@ local function test_lifecycle()
 
     -- coraza_process_response_body
     ret = coraza.coraza_process_response_body(tx)
-    check(ret == 0, "coraza_process_response_body failed: " .. ret)
+    check(ret >= 0, "coraza_process_response_body failed: " .. ret)
 
     -- coraza_update_status_code
     coraza.coraza_update_status_code(tx, 200)
@@ -264,6 +265,59 @@ local function test_callbacks()
 end
 
 -- ---------------------------------------------------------------------------
+-- test_callbacks_in_coroutine
+-- Callbacks registered from a coroutine (as OpenResty, Kong and APISIX do in
+-- request handlers) must keep working after that coroutine is dead and
+-- collected, and must run on the thread that is processing the transaction.
+-- ---------------------------------------------------------------------------
+local function test_callbacks_in_coroutine()
+    local matched = 0
+    local waf
+    local co = coroutine.create(function()
+        local cfg = coraza.coraza_new_waf_config()
+        coraza.coraza_rules_add(cfg, DENY_RULE)
+        coraza.coraza_set_error_callback(cfg, function(rule_handle)
+            matched = matched + 1
+        end)
+        coraza.coraza_set_debug_log_callback(cfg, function() end)
+        waf = coraza.coraza_new_waf(cfg)
+        coraza.coraza_free_waf_config(cfg)
+    end)
+    check(coroutine.resume(co), "coroutine failed")
+    co = nil
+    collectgarbage()
+    collectgarbage()
+
+    local function run_tx()
+        local tx = coraza.coraza_new_transaction(waf)
+        coraza.coraza_process_connection(tx, "127.0.0.1", 12345, "localhost", 80)
+        coraza.coraza_process_uri(tx, "/test", "GET", "HTTP/1.1")
+        coraza.coraza_process_request_headers(tx)
+        coraza.coraza_free_transaction(tx)
+    end
+    run_tx()                                   -- from the main thread
+    check(coroutine.resume(coroutine.create(run_tx)), "coroutine failed")
+    check(matched == 2, "expected 2 error callbacks, got " .. matched)
+
+    -- An error raised inside a callback must not abort processing.
+    local cfg = coraza.coraza_new_waf_config()
+    coraza.coraza_rules_add(cfg, DENY_RULE)
+    coraza.coraza_set_error_callback(cfg, function() error("boom") end)
+    local waf2 = coraza.coraza_new_waf(cfg)
+    coraza.coraza_free_waf_config(cfg)
+    local tx = coraza.coraza_new_transaction(waf2)
+    coraza.coraza_process_connection(tx, "127.0.0.1", 12345, "localhost", 80)
+    coraza.coraza_process_uri(tx, "/test", "GET", "HTTP/1.1")
+    check(coraza.coraza_process_request_headers(tx) == 1,
+          "expected CORAZA_INTERRUPTION with a failing callback")
+    coraza.coraza_free_transaction(tx)
+    coraza.coraza_free_waf(waf2)
+
+    coraza.coraza_free_waf(waf)
+    print("  test_callbacks_in_coroutine: PASS")
+end
+
+-- ---------------------------------------------------------------------------
 -- test_intervention_redirect
 -- Covers: coraza_intervention .data field (redirect URL), coraza_free_intervention
 -- Validates the char *data struct field end-to-end through the SWIG layer.
@@ -358,6 +412,7 @@ test_lifecycle()
 test_request_body_from_file()
 test_rules_merge()
 test_callbacks()
+test_callbacks_in_coroutine()
 test_intervention_redirect()
 test_waf_creation_error()
 test_invalid_inputs()

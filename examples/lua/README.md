@@ -8,19 +8,23 @@ standard Lua 5.4 and LuaJIT (as used by Kong/OpenResty).
 
 * libcoraza built in the repository root (`make` from the root)
 * SWIG 4.0+
-* Lua 5.4 development headers
+* Lua 5.4 or LuaJIT 2.1 development headers
 
 Install on Debian/Ubuntu:
 
 ```sh
-sudo apt install swig lua5.4 liblua5.4-dev
+sudo apt install swig lua5.4 liblua5.4-dev      # Lua 5.4
+sudo apt install swig luajit libluajit-5.1-dev  # LuaJIT
 ```
 
 Install on macOS (Homebrew):
 
 ```sh
-brew install swig lua
+brew install swig lua     # or: brew install swig luajit
 ```
+
+To build and run against LuaJIT, pass `LUA=luajit` to `make`, e.g.
+`make -C examples/lua run LUA=luajit`.
 
 ## Build
 
@@ -105,6 +109,18 @@ end
 
 coraza.coraza_free_transaction(tx)
 ```
+
+### Callback notes
+
+* Callbacks fire synchronously during the libcoraza call that triggered them,
+  and run on the Lua thread (coroutine) making that call, not the one that
+  registered them. Registering callbacks once at startup and processing
+  transactions in request handlers is safe.
+* An error raised inside a callback is printed to stderr and otherwise
+  ignored; transaction processing continues.
+* Each registered callback holds a Lua registry reference and a small C
+  allocation that are never released. Rebuilding the WAF on every config
+  reload leaks one of each per callback, so register callbacks sparingly.
 
 ## Clean
 
