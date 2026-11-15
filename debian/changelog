@@ -1,3 +1,13 @@
+libcoraza (1.8.1-1) unstable; urgency=medium
+
+  * New upstream release 1.8.1.
+  * Build against coraza v3.8.1 (was v3.7.0). With CRS, coraza v3.7.0 keeps
+    ~170 MB per transaction alive between phases on a 230 KB JSON body, so a
+    slow upstream holding many requests open could run nginx workers out of
+    memory (coraza-nginx#173); v3.8.1 keeps ~45 MB.
+
+ -- Pierre Pomes <pierre.pomes@gmail.com>  Sat, 14 Nov 2026 13:53:35 -0500
+
 libcoraza (1.8.0-1) unstable; urgency=low
 
   * New upstream release 1.8.0.
