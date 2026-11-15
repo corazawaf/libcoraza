@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/corazawaf/libcoraza/compare/v1.8.0...v1.8.1) (2026-11-15)
+
+
+### Miscellaneous Chores
+
+* debian/changelog for 1.8.1 ([#140](https://github.com/corazawaf/libcoraza/issues/140)) ([c599acf](https://github.com/corazawaf/libcoraza/commit/c599acf7ff3fc0bc37e3f8d3fdbd6b6ece87609b))
+
 ## [1.8.0](https://github.com/corazawaf/libcoraza/compare/v1.7.0...v1.8.0) (2026-09-23)
 
 

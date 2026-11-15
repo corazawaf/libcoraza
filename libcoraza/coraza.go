@@ -23,7 +23,7 @@ package main
 // the library that ends up loaded. Call coraza_version_num() instead.
 #define LIBCORAZA_VERSION_MAJOR 1 // x-release-please-major
 #define LIBCORAZA_VERSION_MINOR 8 // x-release-please-minor
-#define LIBCORAZA_VERSION_PATCH 0 // x-release-please-patch
+#define LIBCORAZA_VERSION_PATCH 1 // x-release-please-patch
 #define LIBCORAZA_VERSION_NUM   (LIBCORAZA_VERSION_MAJOR * 10000 + \
                                  LIBCORAZA_VERSION_MINOR * 100   + \
                                  LIBCORAZA_VERSION_PATCH)
