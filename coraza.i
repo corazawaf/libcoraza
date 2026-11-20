@@ -9,6 +9,7 @@
 
 %{
 /* Include the actual generated header in the wrapper code */
+#include <stdio.h>    /* fprintf in the Lua callback trampolines */
 #include <stdlib.h>
 #include <limits.h>   /* INT_MAX, used by the byte-buffer typemaps */
 #include "coraza/coraza.h"
@@ -46,6 +47,11 @@
         SWIG_JavaThrowException(jenv, SWIG_JavaRuntimeException, _swig_err_msg);
         free(_swig_err_msg);
         return $null;
+#elif defined(SWIGLUA)
+        /* In SWIG Lua, push the message then jump to fail: which calls lua_error. */
+        lua_pushstring(L, _swig_err_msg);
+        free(_swig_err_msg);
+        SWIG_fail;
 #else
         SWIG_Error(SWIG_RuntimeError, _swig_err_msg);
         free(_swig_err_msg);
@@ -155,6 +161,156 @@ int coraza_set_debug_log_callback(coraza_waf_config_t cfg, PyObject *cb) {
 }
 %}
 %exception;
+#endif
+
+#ifdef SWIGLUA
+/*
+ * Byte-buffer typemap: collapses (const unsigned char *data, int length)
+ * into a single Lua string argument.  Lua strings are byte arrays and may
+ * contain arbitrary bytes (including NUL), so they serve as byte buffers.
+ */
+%typemap(in) (const unsigned char *data, int length) {
+    size_t _swig_len;
+    const char *_swig_str = luaL_checklstring(L, $input, &_swig_len);
+    if (_swig_len > (size_t)INT_MAX) {
+        luaL_error(L, "buffer exceeds maximum length (2 GB)");
+    }
+    $1 = (unsigned char *)_swig_str;
+    $2 = (int)_swig_len;
+}
+
+/*
+ * Lua callback trampolines.
+ *
+ * Use coraza_set_error_callback / coraza_set_debug_log_callback to register
+ * plain Lua functions.  The function is stored as a reference in the Lua
+ * registry and a C trampoline calls back into Lua at event time.
+ *
+ * Expected Lua signatures:
+ *   on_error(rule_handle)            -- rule_handle is an integer (uintptr_t)
+ *   on_debug_log(level, msg, fields) -- level: int, msg/fields: strings
+ *
+ * Which lua_State runs a callback: callbacks fire synchronously, on the OS
+ * thread of the libcoraza call that triggered them.  Every wrapped function
+ * records its own lua_State in a thread-local for the duration of the call
+ * (see %exception below), and the trampolines run the callback on that
+ * state.  The state that registered the callback is not used: in OpenResty,
+ * Kong or APISIX it is usually a request coroutine that may be suspended or
+ * already collected by the time the callback fires.  Callbacks must be used
+ * from the same Lua VM that registered them.
+ *
+ * Errors raised by a callback are printed to stderr and otherwise ignored.
+ *
+ * Lifetime note: the context struct and its registry reference are never
+ * released; they live as long as the Lua state.  Free the WAF before closing
+ * the Lua state.  Code that rebuilds WAFs often (e.g. on every config reload)
+ * leaks one small allocation and registry slot per registered callback.
+ */
+%{
+#if defined(_MSC_VER)
+static __declspec(thread) lua_State *_swig_lua_current_L = NULL;
+#else
+static _Thread_local lua_State *_swig_lua_current_L = NULL;
+#endif
+
+typedef struct {
+    int ref; /* Lua registry reference to the callback function */
+} _swig_lua_cb_ctx_t;
+
+static void _swig_lua_call_cb(lua_State *L, int nargs) {
+    if (lua_pcall(L, nargs, 0, 0) != 0) {
+        const char *err = lua_tostring(L, -1);
+        fprintf(stderr, "coraza: error in Lua callback: %s\n", err ? err : "(non-string error)");
+        lua_pop(L, 1);
+    }
+}
+
+static void _swig_lua_error_trampoline(void *ctx, coraza_matched_rule_t rule) {
+    _swig_lua_cb_ctx_t *lctx = (_swig_lua_cb_ctx_t *)ctx;
+    lua_State *L = _swig_lua_current_L;
+    if (!L || !lua_checkstack(L, 2)) return;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, lctx->ref);
+    lua_pushinteger(L, (lua_Integer)(uintptr_t)rule);
+    _swig_lua_call_cb(L, 1);
+}
+
+static void _swig_lua_debug_trampoline(void *ctx, coraza_debug_log_level_t level,
+                                        const char *msg, const char *fields) {
+    _swig_lua_cb_ctx_t *lctx = (_swig_lua_cb_ctx_t *)ctx;
+    lua_State *L = _swig_lua_current_L;
+    if (!L || !lua_checkstack(L, 4)) return;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, lctx->ref);
+    lua_pushinteger(L, (lua_Integer)level);
+    lua_pushstring(L, msg    ? msg    : "");
+    lua_pushstring(L, fields ? fields : "");
+    _swig_lua_call_cb(L, 3);
+}
+%}
+
+/* Record the calling lua_State for the trampolines; restore the previous one
+ * so nested calls from inside a callback keep working. */
+%exception {
+    lua_State *_swig_prev_L = _swig_lua_current_L;
+    _swig_lua_current_L = L;
+    $action
+    _swig_lua_current_L = _swig_prev_L;
+}
+
+/*
+ * Expose hand-written Lua-stack-aware wrappers as native module functions.
+ *
+ * Lua call syntax:
+ *   coraza.coraza_set_error_callback(cfg, function(rule_handle) ... end)
+ *   coraza.coraza_set_debug_log_callback(cfg, function(level, msg, fields) ... end)
+ */
+%native(coraza_set_error_callback) int _swig_coraza_lua_set_error_cb(lua_State *L);
+%native(coraza_set_debug_log_callback) int _swig_coraza_lua_set_debug_log_cb(lua_State *L);
+
+%{
+int _swig_coraza_lua_set_error_cb(lua_State *L) {
+    coraza_waf_config_t cfg =
+        (coraza_waf_config_t)(uintptr_t)luaL_checkinteger(L, 1);
+    luaL_checktype(L, 2, LUA_TFUNCTION);
+    _swig_lua_cb_ctx_t *ctx =
+        (_swig_lua_cb_ctx_t *)malloc(sizeof(_swig_lua_cb_ctx_t));
+    if (!ctx) {
+        lua_pushliteral(L, "coraza_set_error_callback: out of memory");
+        lua_error(L);
+    }
+    lua_pushvalue(L, 2);                       /* duplicate the function */
+    ctx->ref = luaL_ref(L, LUA_REGISTRYINDEX); /* pop + store in registry */
+    int ret = coraza_add_error_callback(cfg, _swig_lua_error_trampoline,
+                                        (void *)ctx);
+    if (ret != 0) {
+        luaL_unref(L, LUA_REGISTRYINDEX, ctx->ref);
+        free(ctx);
+    }
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+int _swig_coraza_lua_set_debug_log_cb(lua_State *L) {
+    coraza_waf_config_t cfg =
+        (coraza_waf_config_t)(uintptr_t)luaL_checkinteger(L, 1);
+    luaL_checktype(L, 2, LUA_TFUNCTION);
+    _swig_lua_cb_ctx_t *ctx =
+        (_swig_lua_cb_ctx_t *)malloc(sizeof(_swig_lua_cb_ctx_t));
+    if (!ctx) {
+        lua_pushliteral(L, "coraza_set_debug_log_callback: out of memory");
+        lua_error(L);
+    }
+    lua_pushvalue(L, 2);
+    ctx->ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    int ret = coraza_add_debug_log_callback(cfg, _swig_lua_debug_trampoline,
+                                            (void *)ctx);
+    if (ret != 0) {
+        luaL_unref(L, LUA_REGISTRYINDEX, ctx->ref);
+        free(ctx);
+    }
+    lua_pushinteger(L, ret);
+    return 1;
+}
+%}
 #endif
 
 #ifdef SWIGJAVA
