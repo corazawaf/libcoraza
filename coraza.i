@@ -5,7 +5,14 @@
  * extern declaration or a %ignore directive (for callback-based functions).
  * Run `make check-swig-sync` to verify the two files are in sync.
  */
+#ifdef SWIGPYTHON
+/* threads="1" makes SWIG emit GIL release code; %nothread keeps the GIL held
+ * everywhere except the functions marked %thread further down. */
+%module(threads="1") coraza
+%nothread;
+#else
 %module coraza
+#endif
 
 %{
 /* Include the actual generated header in the wrapper code */
@@ -186,7 +193,11 @@ int coraza_set_debug_log_callback(coraza_waf_config_t cfg, PyObject *cb) {
 %typemap(jstype) (const unsigned char *data, int length) "byte[]"
 %typemap(javain) (const unsigned char *data, int length) "$javainput"
 %typemap(in)     (const unsigned char *data, int length) {
+    /* Not GetPrimitiveArrayCritical: the call into Go can run rules, fire the
+     * Java callbacks and block on temp-file I/O, none of which is allowed
+     * inside a critical region.  Go copies the body anyway. */
     $1 = (unsigned char *)JCALL2(GetByteArrayElements, jenv, $input, NULL);
+    if (!$1) return $null; /* OutOfMemoryError is already pending */
     $2 = (int)JCALL1(GetArrayLength, jenv, $input);
 }
 %typemap(argout) (const unsigned char *data, int length) {
@@ -214,14 +225,31 @@ typedef struct {
     jmethodID mid;
 } _swig_java_cb_ctx_t;
 
+/*
+ * Obtain a JNIEnv for the current thread, attaching it as a daemon if needed.
+ * Callbacks normally fire on the calling Java thread, which is already
+ * attached.  *attached is set when this call attached the thread; the caller
+ * must then detach it before returning.  Returns NULL on failure.
+ */
+static JNIEnv *_swig_jni_env(JavaVM *jvm, jboolean *attached) {
+    JNIEnv *env = NULL;
+    *attached = JNI_FALSE;
+    jint rc = (*jvm)->GetEnv(jvm, (void **)&env, JNI_VERSION_1_6);
+    if (rc == JNI_OK)
+        return env;
+    if (rc != JNI_EDETACHED)
+        return NULL;
+    if ((*jvm)->AttachCurrentThreadAsDaemon(jvm, (void **)&env, NULL) != JNI_OK)
+        return NULL;
+    *attached = JNI_TRUE;
+    return env;
+}
+
 static void _swig_java_error_trampoline(void *ctx, coraza_matched_rule_t rule) {
     _swig_java_cb_ctx_t *jctx = (_swig_java_cb_ctx_t *)ctx;
-    JNIEnv *env = NULL;
-    jboolean attached = JNI_FALSE;
-    if ((*jctx->jvm)->GetEnv(jctx->jvm, (void **)&env, JNI_VERSION_1_6) == JNI_EDETACHED) {
-        (*jctx->jvm)->AttachCurrentThreadAsDaemon(jctx->jvm, (void **)&env, NULL);
-        attached = JNI_TRUE;
-    }
+    jboolean attached;
+    JNIEnv *env = _swig_jni_env(jctx->jvm, &attached);
+    if (!env) return;
     (*env)->CallVoidMethod(env, jctx->obj, jctx->mid, (jlong)(uintptr_t)rule);
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionDescribe(env);
     if (attached) (*jctx->jvm)->DetachCurrentThread(jctx->jvm);
@@ -230,12 +258,9 @@ static void _swig_java_error_trampoline(void *ctx, coraza_matched_rule_t rule) {
 static void _swig_java_debug_trampoline(void *ctx, coraza_debug_log_level_t level,
                                          const char *msg, const char *fields) {
     _swig_java_cb_ctx_t *jctx = (_swig_java_cb_ctx_t *)ctx;
-    JNIEnv *env = NULL;
-    jboolean attached = JNI_FALSE;
-    if ((*jctx->jvm)->GetEnv(jctx->jvm, (void **)&env, JNI_VERSION_1_6) == JNI_EDETACHED) {
-        (*jctx->jvm)->AttachCurrentThreadAsDaemon(jctx->jvm, (void **)&env, NULL);
-        attached = JNI_TRUE;
-    }
+    jboolean attached;
+    JNIEnv *env = _swig_jni_env(jctx->jvm, &attached);
+    if (!env) return;
     jstring jmsg    = (*env)->NewStringUTF(env, msg    ? msg    : "");
     jstring jfields = (*env)->NewStringUTF(env, fields ? fields : "");
     /* NewStringUTF returns NULL on OOM; skip the call rather than crash. */
@@ -362,7 +387,29 @@ typedef enum coraza_severity_t {
 
 /*
  * Function declarations
+ *
+ * Release the Python GIL for calls that cross into Go and do real work, so
+ * other Python threads can run concurrently.  coraza_append_request_body and
+ * coraza_append_response_body are intentionally excluded: the Python typemap
+ * extracts a raw pointer via PyBytes_AS_STRING / PyByteArray_AS_STRING and
+ * that pointer must remain valid for the duration of the call — releasing the
+ * GIL would allow another thread to resize a bytearray under Go.
+ *
+ * With the GIL released, nothing serialises calls on the same transaction
+ * from different Python threads.  Transactions are not thread-safe: use each
+ * one from a single thread, and do not free it while another call is running.
  */
+#ifdef SWIGPYTHON
+%thread coraza_new_waf;
+%thread coraza_rules_merge;
+%thread coraza_process_connection;
+%thread coraza_process_uri;
+%thread coraza_process_request_headers;
+%thread coraza_process_request_body;
+%thread coraza_process_response_headers;
+%thread coraza_process_response_body;
+%thread coraza_process_logging;
+#endif
 
 extern coraza_waf_config_t coraza_new_waf_config();
 extern int coraza_rules_add_file(coraza_waf_config_t c, const char *file);
